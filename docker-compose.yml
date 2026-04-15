@@ -1,0 +1,47 @@
+services:
+  # 1. Base de données PostgreSQL
+  db:
+    image: postgres:latest
+    container_name: medpredict_db
+    environment:
+      POSTGRES_DB: medpredict_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+  # 2. Backend Django
+  backend:
+    build: ./backend
+    container_name: medpredict_backend
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_NAME=medpredict_db
+      - DATABASE_USER=admin
+      - DATABASE_PASSWORD=password123
+      - DATABASE_HOST=db
+    depends_on:
+      - db
+    command: python manage.py runserver 0.0.0.0:8000
+
+  # 3. Frontend React (Vite) - AJOUTÉ
+  frontend:
+    build: ./frontend
+    container_name: medpredict_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Isolation des modules Docker/Windows
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Pour le rafraîchissement automatique (HMR)
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
