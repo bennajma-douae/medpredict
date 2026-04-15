@@ -37,10 +37,10 @@ Pour lancer le projet sur votre machine locale :
     docker-compose exec backend python manage.py migrate
     docker-compose exec backend python manage.py createsuperuser
 
-🔄 Workflow Actuel (Le "Flow")
-Patient : Inscription -> Demande de RDV (Statut : En attente).
-Secrétaire : Visualisation des demandes -> Validation (Crée le dossier Patient + Confirme le RDV).
-Médecin : Agenda dynamique -> Clic sur le RDV -> Ouverture de la Consultation.
+## 🔄 Workflow Actuel (Le "Flow")
+- Patient : Inscription -> Demande de RDV (Statut : En attente).
+- Secrétaire : Visualisation des demandes -> Validation (Crée le dossier Patient + Confirme le RDV).
+- Médecin : Agenda dynamique -> Clic sur le RDV -> Ouverture de la Consultation.
 
-🔑 Accès Spéciaux
-Maintenance Console : Accessible via le raccourci Alt + T sur la page d'accueil (Accès réservé au rôle ADMIN).
+## 🔑 Accès Spéciaux
+- Maintenance Console : Accessible via le raccourci Alt + T sur la page d'accueil (Accès réservé au rôle ADMIN).
