@@ -69,13 +69,6 @@ const RoleSelection = () => {
           color="bg-indigo-600 shadow-indigo-600/40"
           onClick={() => navigate('/login?role=SECRETAIRE')}
         />
-        <RoleCard 
-          icon={Users}
-          title="Patient"
-          desc="Accès à votre espace santé, historique des rendez-vous et résultats de consultations."
-          color="bg-teal-500 shadow-teal-500/40"
-          onClick={() => navigate('/login?role=PATIENT')}
-        />
       </div>
 
       <p className="mt-16 text-slate-600 text-[10px] font-bold uppercase tracking-[0.4em]">
