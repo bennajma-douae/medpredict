@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 """
 Django settings for config project.
 
@@ -122,13 +125,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # ==================== CONFIGURATION EMAIL ====================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'          # Change si tu utilises un autre service
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'douae.bennajma1@gmail.com'          # ← Mets ton email ici
-EMAIL_HOST_PASSWORD = 'REMOVED_SECRET'         # ← App Password Gmail (pas ton mot de passe normal)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-DEFAULT_FROM_EMAIL = 'douae.bennajma1@gmail.com'
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
+
+
 # Pour le développement : tu peux d'abord utiliser la console
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
