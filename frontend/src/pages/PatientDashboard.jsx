@@ -8,15 +8,15 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const PatientDashboard = () => {
-  const { user, token , logout } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
   const [hasProfile, setHasProfile] = useState(false);
   const [patientInfo, setPatientInfo] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [showBooking, setShowBooking] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [emailVerified, setEmailVerified] = useState(null); // null = en cours de vérification
   const navigate = useNavigate();
 
-  // État pour la demande de RDV (medecin est null par défaut)
   const [rdvData, setRdvData] = useState({ date: '', heure: '', motif: '', medecin: null });
 
   const handleLogout = () => {
@@ -27,17 +27,30 @@ const PatientDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Récupérer les infos utilisateur pour vérifier l'email
       const usersRes = await axios.get('http://localhost:8000/api/users/', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const doctor = usersRes.data.find(u => u.role === 'MEDECIN');
       
+      const currentUser = usersRes.data.find(u => u.id === user.id);
+      const isVerified = currentUser?.email_verified || false;
+      setEmailVerified(isVerified);
+
+      // Si l'email n'est PAS vérifié → on arrête tout
+      if (!isVerified) {
+        setLoading(false);
+        return;
+      }
+
+      // Récupérer le médecin pour la prise de RDV
+      const doctor = usersRes.data.find(u => u.role === 'MEDECIN');
       if (doctor) {
         setRdvData(prev => ({ ...prev, medecin: doctor.id }));
       }
 
-      const patientsRes = await axios.get(`http://localhost:8000/api/patients/`, {
-          headers: { Authorization: `Bearer ${token}` }
+      // Récupérer les patients
+      const patientsRes = await axios.get('http://localhost:8000/api/patients/', {
+        headers: { Authorization: `Bearer ${token}` }
       });
       
       const profile = patientsRes.data.find(p => p.user === user.id);
@@ -46,7 +59,7 @@ const PatientDashboard = () => {
         setHasProfile(true);
         setPatientInfo(profile);
         
-        const rdvRes = await axios.get(`http://localhost:8000/api/appointments/`, {
+        const rdvRes = await axios.get('http://localhost:8000/api/appointments/', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAppointments(rdvRes.data.filter(a => a.user === user.id));
@@ -59,14 +72,16 @@ const PatientDashboard = () => {
   };
 
   useEffect(() => {
-    if (token) fetchData();
+    if (token && user) {
+      fetchData();
+    }
   }, [user, token]);
 
   const handleBooking = async (e) => {
     e.preventDefault();
     if (!rdvData.medecin) {
-        alert("Erreur : Aucun médecin n'est configuré dans le cabinet.");
-        return;
+      alert("Erreur : Aucun médecin n'est configuré dans le cabinet.");
+      return;
     }
 
     try {
@@ -83,13 +98,51 @@ const PatientDashboard = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-blue-500 font-bold uppercase tracking-widest animate-pulse text-xs">Initialisation de votre session...</div>;
+  // Écran de chargement
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-blue-500 font-bold uppercase tracking-widest animate-pulse text-xs">
+        Initialisation de votre session...
+      </div>
+    );
+  }
 
-  // --- VUE 1 : NOUVEAU PATIENT ---
+  // Écran de blocage si email non vérifié
+  if (emailVerified === false) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6">
+        <div className="glass max-w-md w-full p-10 rounded-[40px] text-center border border-red-500/30">
+          <div className="text-red-500 mb-6">
+            <AlertTriangle size={48} className="mx-auto" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-4">Vérification d'email requise</h2>
+          <p className="text-slate-400 mb-8 leading-relaxed">
+            Votre adresse email n'a pas encore été vérifiée.<br />
+            Veuillez cliquer sur le lien de vérification que nous vous avons envoyé par email.
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={handleLogout}
+              className="w-full bg-red-600 hover:bg-red-500 py-3 rounded-2xl font-bold text-sm transition-all"
+            >
+              Se déconnecter
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl font-bold text-sm transition-all"
+            >
+              J'ai vérifié mon email
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VUE 1 : NOUVEAU PATIENT (sans profil) ---
   if (!hasProfile) {
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-10 animate-in fade-in duration-700 px-6">
-        {/* BOUTON DÉCONNEXION HAUT GAUCHE */}
         <button 
           onClick={handleLogout}
           className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:text-red-500 transition-colors tracking-widest"
@@ -104,7 +157,9 @@ const PatientDashboard = () => {
 
         <div className="grid md:grid-cols-2 gap-8">
           <div className="glass p-8 rounded-[40px] border-teal-500/20 flex flex-col items-center text-center group hover:border-teal-500/50 transition-all">
-             <div className="w-16 h-16 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-500 mb-6 shadow-xl group-hover:scale-110 transition-transform"><Calendar size={32}/></div>
+             <div className="w-16 h-16 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-500 mb-6 shadow-xl group-hover:scale-110 transition-transform">
+               <Calendar size={32}/>
+             </div>
              <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tighter">Prendre RDV</h3>
              <p className="text-slate-500 text-sm mb-8">Envoyez une demande de consultation au cabinet.</p>
              <button onClick={() => setShowBooking(true)} className="w-full bg-teal-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-teal-500 transition-all shadow-lg shadow-teal-900/20">Démarrer</button>
@@ -126,7 +181,6 @@ const PatientDashboard = () => {
     <div className="max-w-5xl mx-auto py-10 space-y-8 animate-in fade-in duration-700 px-6">
       <div className="flex justify-between items-end border-b border-white/5 pb-8">
         <div>
-          {/* BOUTON DÉCONNEXION */}
           <button 
             onClick={handleLogout}
             className="flex items-center gap-2 text-[10px] font-black uppercase text-red-500 hover:text-red-400 transition-colors tracking-[0.2em] mb-4"
@@ -195,12 +249,13 @@ const PatientDashboard = () => {
            </div>
         </div>
       </div>
+
       {showBooking && <BookingModal onClose={() => setShowBooking(false)} onSubmit={handleBooking} setData={setRdvData} data={rdvData} />}
     </div>
   );
 };
 
-// COMPOSANT MODAL
+// COMPOSANT MODAL (inchangé)
 const BookingModal = ({ onClose, onSubmit, setData, data }) => (
   <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-6">
      <div className="glass p-10 rounded-[40px] border-white/10 max-w-md w-full relative shadow-2xl">

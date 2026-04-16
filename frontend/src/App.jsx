@@ -11,8 +11,11 @@ import Patients from './pages/Patients';
 import Signup from './pages/Signup';
 import PatientDashboard from './pages/PatientDashboard';
 import SecretaryDashboard from './pages/SecretaryDashboard';
+import PatientLanding from './pages/PatientLanding';     // ← Nouveau
+import PatientSignup from './pages/PatientSignup';     // ← Nouveau
 import useAuthStore from './store/authStore';
 import Consultation from './pages/Consultation';
+
 function App() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
@@ -35,6 +38,11 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/tech-ops" element={<TechLogin />} />
+
+      {/* === NOUVELLES ROUTES POUR L'ESPACE PATIENT === */}
+      <Route path="/patient" element={<PatientLanding />} />
+      <Route path="/patient/signup" element={<PatientSignup />} />
+
       <Route path="/consultation/:rdvId" element={<Layout><Consultation /></Layout>} />
 
       {/* 2. LE DASHBOARD PRINCIPAL (Dynamique selon le rôle) */}

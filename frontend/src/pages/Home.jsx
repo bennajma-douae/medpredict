@@ -5,7 +5,7 @@ import {
   MessageCircle, Phone, Mail, ArrowRight, Globe, 
   Users, Cpu, CheckCircle, HeartPulse, Microscope, 
   ChevronRight, Database, Activity, Lock, Shield, 
-  Zap, ClipboardList, Info, MousePointer2
+  Zap, ClipboardList, Info
 } from 'lucide-react';
 
 const Home = () => {
@@ -26,19 +26,34 @@ const Home = () => {
             </div>
             <span className="text-lg font-black tracking-tighter text-white uppercase italic">MedPredict</span>
           </div>
+
           <div className="hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
             <a href="#services" className="hover:text-white transition">Services</a>
             <a href="#ia" className="hover:text-white transition">Intelligence</a>
             <a href="#securite" className="hover:text-white transition">Sécurité</a>
             <a href="#etapes" className="hover:text-white transition">Parcours</a>
           </div>
-          <button onClick={() => navigate('/connexion')} className="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold text-xs hover:bg-blue-500 transition-all">
-            Connexion
-          </button>
+
+          <div className="flex items-center gap-4">
+            {/* Bouton Espace Patient dans la navbar */}
+            <button 
+              onClick={() => navigate('/patient')} 
+              className="px-5 py-2 text-teal-400 hover:text-teal-300 font-bold text-xs uppercase tracking-widest border border-teal-500/30 hover:border-teal-500 rounded-xl transition-all hidden lg:block"
+            >
+              Espace Patient
+            </button>
+
+            <button 
+              onClick={() => navigate('/connexion')} 
+              className="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold text-xs hover:bg-blue-500 transition-all"
+            >
+              Connexion Staff
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* HERO SECTION AVEC ÉLÉMENTS FLOTTANTS */}
+      {/* HERO SECTION */}
       <section className="relative pt-40 pb-20 px-6">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
           <div>
@@ -53,13 +68,16 @@ const Home = () => {
               MedPredict n'est pas qu'un outil de gestion. C'est un assistant intelligent qui centralise vos dossiers et sécurise vos diagnostics.
             </p>
             <div className="flex items-center gap-4">
-              <button onClick={() => navigate('/connexion')} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all">
-                Démarrer l'expérience
+              <button 
+                onClick={() => navigate('/connexion')} 
+                className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all"
+              >
+                Démarrer l'expérience (Staff)
               </button>
             </div>
           </div>
 
-          {/* COMPOSITION D'IMAGES FLOTTANTES */}
+          {/* Image + widgets flottants (inchangé) */}
           <div className="relative flex justify-center items-center h-[450px]">
             <div className="relative z-10 w-full max-w-md animate-float">
               <div className="absolute -inset-4 bg-blue-600/20 blur-3xl rounded-full"></div>
@@ -69,7 +87,6 @@ const Home = () => {
                 alt="Medical Tech" 
               />
             </div>
-            {/* WIDGETS FLOTTANTS */}
             <div className="absolute top-0 right-0 glass p-4 rounded-2xl animate-float shadow-2xl border-blue-500/30" style={{ animationDelay: '1s' }}>
                <Activity className="text-blue-500 mb-2" size={24} />
                <p className="text-[10px] font-bold text-slate-400 uppercase">IA Précision</p>
@@ -87,6 +104,30 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* BANDEAU PATIENT - Très visible */}
+      <section className="py-8 px-6 border-y border-teal-500/20 bg-gradient-to-r from-teal-950 to-transparent">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-400 flex-shrink-0">
+              <HeartPulse size={28} />
+            </div>
+            <div>
+              <p className="text-white font-bold text-lg">Vous êtes un patient ?</p>
+              <p className="text-slate-400 text-sm">Accédez à votre espace personnel pour prendre rendez-vous et suivre votre dossier médical.</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/patient')}
+            className="flex items-center gap-3 bg-teal-600 hover:bg-teal-500 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg shadow-teal-900/30 whitespace-nowrap"
+          >
+            Accéder à mon espace patient 
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </section>
+      {/* ═══════════════════════════════════════════════════════ */}
 
       {/* SÉCURITÉ & CONFIANCE (Pillier Réel) */}
       <section id="securite" className="py-20 bg-slate-900/40 border-y border-white/5">

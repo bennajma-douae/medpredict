@@ -120,6 +120,21 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# ==================== CONFIGURATION EMAIL ====================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'          # Change si tu utilises un autre service
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'douae.bennajma1@gmail.com'          # ← Mets ton email ici
+EMAIL_HOST_PASSWORD = 'REMOVED_SECRET'         # ← App Password Gmail (pas ton mot de passe normal)
+
+DEFAULT_FROM_EMAIL = 'douae.bennajma1@gmail.com'
+# Pour le développement : tu peux d'abord utiliser la console
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Domaine pour générer les liens dans les emails
+SITE_URL = 'http://localhost:8000'   # En production → change en https://tondomaine.com
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
