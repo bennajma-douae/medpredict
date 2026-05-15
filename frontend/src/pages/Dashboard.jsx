@@ -4,7 +4,7 @@ import useAppointmentStore from '../store/appointmentStore';
 import { Activity, Video, User, Clock, CheckCircle, TrendingUp } from 'lucide-react';
 
 const Dashboard = () => {
-  // AJUSTEMENT 1 : On récupère 'appointments' (pour le calendrier) ET 'todayAppointments' (pour les KPIs)
+  // LOGIQUE ORIGINALE : Récupération des stores
   const { appointments, todayAppointments, fetchAppointments } = useAppointmentStore();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -14,12 +14,12 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, [fetchAppointments]);
 
-  // --- KPIs calculés depuis les données de AUJOURD'HUI ---
+  // --- LOGIQUE ORIGINALE : Calcul des KPIs ---
   const totalConfirmes  = todayAppointments.length;
   const enVisio         = todayAppointments.filter(a => a.type === 'VISIO').length;
   const enPresentiel    = todayAppointments.filter(a => a.type === 'PRESENTIEL').length;
 
-  // Prochain RDV : le plus proche de maintenant
+  // LOGIQUE ORIGINALE : Prochain RDV
   const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
   const prochainRdv = todayAppointments
     .filter(a => {
@@ -63,26 +63,27 @@ const Dashboard = () => {
     },
   ];
 
+  // STYLE : Palette Medical Light adaptée au fond blanc
   const colorMap = {
-    blue:   { bg: 'bg-blue-600/15',   text: 'text-blue-400',   hover: 'hover:border-blue-500/40',  icon: 'group-hover:bg-blue-600'   },
-    emerald:{ bg: 'bg-emerald-600/15',text: 'text-emerald-400',hover: 'hover:border-emerald-500/40',icon: 'group-hover:bg-emerald-600'},
-    indigo: { bg: 'bg-indigo-600/15', text: 'text-indigo-400', hover: 'hover:border-indigo-500/40', icon: 'group-hover:bg-indigo-600' },
-    amber:  { bg: 'bg-amber-600/15',  text: 'text-amber-400',  hover: 'hover:border-amber-500/40',  icon: 'group-hover:bg-amber-600'  },
+    blue:    { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-100',  icon: 'bg-blue-600' },
+    emerald: { bg: 'bg-emerald-50',text: 'text-emerald-600',border: 'border-emerald-100',icon: 'bg-emerald-600'},
+    indigo:  { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', icon: 'bg-indigo-600' },
+    amber:   { bg: 'bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-100',  icon: 'bg-amber-600'  },
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
 
-      {/* ── HEADER ── */}
-      <div className="flex justify-between items-end border-b border-white/5 pb-8">
+      {/* ── HEADER (Style Light) ── */}
+      <div className="flex justify-between items-end border-b border-slate-200 pb-8">
         <div>
-          <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-1">
+          <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2">
             {currentTime.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
-          <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-none">
+          <h1 className="text-4xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">
             Mon Agenda
           </h1>
-          <p className="text-slate-500 text-sm mt-1 font-medium">
+          <p className="text-slate-500 text-sm mt-2 font-medium">
             {totalConfirmes === 0
               ? 'Aucun rendez-vous confirmé pour aujourd\'hui.'
               : `${totalConfirmes} rendez-vous confirmé${totalConfirmes > 1 ? 's' : ''} — cliquez sur un créneau pour démarrer la consultation.`}
@@ -90,44 +91,44 @@ const Dashboard = () => {
         </div>
 
         <div className="text-right">
-          <p className="text-3xl font-black text-white tabular-nums tracking-tight">
-            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
-          <p className="text-slate-600 text-xs font-bold uppercase tracking-widest">
-            {currentTime.toLocaleTimeString([], { second: '2-digit' })}s
-          </p>
+          <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100">
+            <p className="text-3xl font-black text-slate-800 tabular-nums tracking-tight">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <p className="text-blue-600 text-[10px] font-black uppercase tracking-widest text-center mt-1">Temps Réel</p>
+          </div>
         </div>
       </div>
 
-      {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── KPIs (Style Light) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map(({ icon: Icon, value, label, color, sub }) => {
           const c = colorMap[color];
           return (
             <div
               key={label}
-              className={`glass p-5 rounded-3xl border border-white/5 ${c.hover} transition-all group cursor-default`}
+              className={`bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group cursor-default`}
             >
               <div className="flex items-start justify-between mb-4">
-                <div className={`w-10 h-10 ${c.bg} rounded-2xl flex items-center justify-center ${c.text} ${c.icon} group-hover:text-white transition-all`}>
-                  <Icon size={20} />
+                <div className={`w-12 h-12 ${c.bg} rounded-2xl flex items-center justify-center ${c.text} group-hover:scale-110 transition-transform`}>
+                  <Icon size={24} />
                 </div>
-                <TrendingUp size={12} className="text-white/10 mt-1" />
+                <TrendingUp size={14} className="text-slate-200" />
               </div>
-              <p className="text-white font-black text-3xl tracking-tighter leading-none">
+              <p className="text-slate-800 font-black text-3xl tracking-tighter leading-none mb-1">
                 {value}
               </p>
-              <p className={`text-[10px] font-black ${c.text} uppercase tracking-widest mt-1`}>
+              <p className={`text-[10px] font-black ${c.text} uppercase tracking-widest`}>
                 {label}
               </p>
-              <p className="text-slate-600 text-[10px] mt-1 truncate">{sub}</p>
+              <p className="text-slate-400 text-[10px] mt-2 font-medium truncate">{sub}</p>
             </div>
           );
         })}
       </div>
 
-      {/* ── CALENDRIER (AJUSTEMENT CRUCIAL : on passe 'appointments' et non plus 'todayAppointments') ── */}
-      <div className="animate-in slide-in-from-bottom duration-700">
+      {/* ── CALENDRIER (Ta logique de props conservée) ── */}
+      <div className="bg-white rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
         <MedicalCalendar appointments={appointments} />
       </div>
     </div>

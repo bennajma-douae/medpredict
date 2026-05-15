@@ -1,0 +1,14 @@
+# ─────────────────────────────────────────────────────────────
+# MedPredict — Téléconsultation
+# Compatible Python 3.11 / 3.12 / 3.13 · Windows / macOS / Linux
+# Pas de PyTorch, pas de CUDA requis
+# ─────────────────────────────────────────────────────────────
+
+# Serveur web
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Transcription audio (Whisper sans PyTorch)
+# Utilise CTranslate2 → fonctionne sur CPU, Python 3.13 inclus
+faster-whisper>=1.0.0
+requests>=2.31.0

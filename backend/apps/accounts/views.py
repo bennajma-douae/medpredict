@@ -1,95 +1,147 @@
+from django.contrib.auth import get_user_model
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
 from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action, api_view, permission_classes as pc
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from django.core.mail import send_mail
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.conf import settings   # ← Cet import est obligatoire
+from rest_framework.permissions import AllowAny
 
-from .models import User
 from .serializers import UserSerializer
 from .tokens import email_verification_token
+
+User = get_user_model()
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if self.action in ['create', 'activate']:
+            return [AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def create(self, request, *args, **kwargs):
+        """Créer un compte + envoyer l'email de vérification via Brevo."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Forcer email_verified = False pour les nouveaux comptes
-        user.email_verified = False
-        user.save()
+        # Envoi de l'email de vérification
+        try:
+            from .tokens import email_verification_token
+            from django.utils.http import urlsafe_base64_encode
+            from django.utils.encoding import force_bytes
+            import requests as req_lib
+            import os
 
-        # === ENVOI DE L'EMAIL DE VÉRIFICATION ===
-        if user.email:
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = email_verification_token.make_token(user)
-            
-            # Lien de vérification
-            verification_link = f"{settings.SITE_URL}/api/users/verify-email/{uid}/{token}/"
-            
-            subject = "MedPredict - Vérifiez votre adresse email"
-            message = f"""
-Bonjour {user.username},
 
-Merci de vous être inscrit sur MedPredict.
+            # URL du frontend pour l'activation
+            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+            activation_link = f"{frontend_url}/activate/{uid}/{token}/"
 
-Cliquez sur le lien ci-dessous pour vérifier votre email :
+            brevo_api_key = os.getenv("BREVO_API_KEY")
+            payload = {
+                "sender": {"name": "MedPredict", "email": "douaebennajma11@gmail.com"},
+                "to": [{"email": user.email}],
+                "subject": "Activez votre compte MedPredict",
+                "htmlContent": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+                  <h2 style="color: #0d9488;">Bienvenue sur MedPredict !</h2>
+                  <p>Merci de créer votre compte. Cliquez sur le bouton ci-dessous pour activer votre compte et compléter votre profil.</p>
+                  <a href="{activation_link}" style="display: inline-block; background-color: #0d9488; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+                    Activer mon compte
+                  </a>
+                  <p style="color: #6b7280; font-size: 12px;">Ce lien expire dans 24 heures. Si vous n'avez pas créé ce compte, ignorez cet email.</p>
+                </div>
+                """
+            }
+            resp = req_lib.post(
+                "https://api.brevo.com/v3/smtp/email",
+                json=payload,
+                headers={"api-key": brevo_api_key, "Content-Type": "application/json"},
+                timeout=8
+            )
+        except Exception as e:
+            print(f"Erreur envoi email: {e}")
 
-{verification_link}
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            {'message': 'Compte créé ! Un email de vérification a été envoyé.', 'user': serializer.data},
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
 
-Ce lien est valide pendant 24 heures.
+    @action(detail=False, methods=['get', 'post'], url_path=r'activate/(?P<uidb64>[^/.]+)/(?P<token>[^/.]+)')
+    def activate(self, request, uidb64=None, token=None):
+        """GET: Valider le token | POST: Activer + créer le profil temporaire PatientDraft."""
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'valid': False, 'error': 'Lien invalide.'}, status=status.HTTP_400_BAD_REQUEST)
 
-Cordialement,
-L'équipe MedPredict
-"""
+        if not email_verification_token.check_token(user, token):
+            return Response({'valid': False, 'error': 'Lien expiré ou invalide.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=None,
-                    recipient_list=[user.email],
-                    fail_silently=False,
-                )
-                print(f"✅ Email de vérification envoyé à {user.email}")
-            except Exception as e:
-                print(f"❌ Erreur lors de l'envoi de l'email : {e}")
+        if request.method == 'GET':
+            # Simple vérification : le token est valide
+            return Response({
+                'valid': True,
+                'email': user.email,
+                'already_verified': user.email_verified
+            })
 
-        return Response({
-            "message": "Compte créé avec succès ! Un email de vérification a été envoyé.",
-            "user_id": user.id,
-            "email": user.email
-        }, status=status.HTTP_201_CREATED)
+        # POST : Activer le compte + créer le PatientDraft (PAS Patient officiel)
+        if request.method == 'POST':
+            # ✅ CHANGEMENT 1 : Import PatientDraft au lieu de Patient
+            from apps.patients.models import PatientDraft
 
-    @action(detail=False, methods=['get'], url_path='verify-email/(?P<uidb64>[^/]+)/(?P<token>[^/]+)')
-    def verify_email(self, request, uidb64=None, token=None):
-            from django.utils.http import urlsafe_base64_decode
-            from django.contrib.auth import get_user_model
+            data = request.data
+            required_fields = ['nom', 'prenom', 'cin', 'telephone', 'dateNaissance']
+            for field in required_fields:
+                if not data.get(field):
+                    return Response({'error': f'Le champ {field} est requis.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            User = get_user_model()
-            try:
-                uid = urlsafe_base64_decode(uidb64).decode()
-                user = User.objects.get(pk=uid)
-            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-                user = None
+            # ✅ CHANGEMENT 2 : Vérifier CIN dans PatientDraft
+            if PatientDraft.objects.filter(cin=data['cin']).exclude(user=user).exists():
+                return Response({'error': 'Ce numéro CIN est déjà utilisé.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if user is not None and email_verification_token.check_token(user, token):
-                user.email_verified = True
-                user.is_active = True
-                user.save()
-                
-                # Redirection vers une page frontend de succès
-                return Response({
-                    "message": "Email vérifié avec succès !",
-                    "redirect": "http://localhost:5173/patient"   # Redirige vers PatientLanding
-                })
-            else:
-                return Response({
-                    "error": "Lien de vérification invalide ou expiré."
-                }, status=400)
+            # Activer l'email
+            user.email_verified = True
+            user.save()
+
+             # ✅ CHANGEMENT 3 : Créer PatientDraft (brouillon), PAS Patient
+            draft, created = PatientDraft.objects.update_or_create(
+                user=user,
+                defaults={
+                    'nom': data['nom'],
+                    'prenom': data['prenom'],
+                    'cin': data['cin'],
+                    'telephone': data['telephone'],
+                    'dateNaissance': data['dateNaissance'],
+                    'genre': data.get('genre', 'M'),
+                    'adresse': data.get('adresse', ''),
+                    'groupeSanguin': data.get('groupeSanguin'),
+                    'allergies': data.get('allergies'),
+                    'antecedents': data.get('antecedents'),
+                }
+            )
+
+            # SYNCHRONISER avec User.first_name / User.last_name
+            user.first_name = data['prenom']
+            user.last_name = data['nom']
+            user.save()
+
+            return Response({
+                'success': True,
+                'message': 'Compte activé et profil temporaire créé avec succès !'
+            }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        """Retourne les infos de l'utilisateur connecté."""
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)

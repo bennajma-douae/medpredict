@@ -49,7 +49,9 @@ INSTALLED_APPS = [
     'apps.consultations',
     'apps.prescriptions',
     'apps.dashboard', 
+    'anymail'
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -124,22 +126,38 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # ==================== CONFIGURATION EMAIL ====================
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+# settings.py
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+#EMAIL_HOST = 'smtp.gmail.com'
+#EMAIL_PORT = 465  # On change le port
+#EMAIL_USE_TLS = False  # On désactive TLS
+#EMAIL_USE_SSL = True   # ON ACTIVE SSL
+#EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+#EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+#DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
 
-DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
+ANYMAIL = {
+    "BREVO_API_KEY": os.getenv("BREVO_API_KEY"),
+}
+EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
 
+# Ton email utilisé pour créer le compte Brevo
+DEFAULT_FROM_EMAIL = "douaebennajma11@gmail.com"
 
 # Pour le développement : tu peux d'abord utiliser la console
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#DEFAULT_FROM_EMAIL = 'noreply@medpredict.ma'
 
 # Domaine pour générer les liens dans les emails
-SITE_URL = 'http://localhost:8000'   # En production → change en https://tondomaine.com
+#SITE_URL = 'http://localhost:8000'   # En production → change en https://tondomaine.com
 
+# ==================== CONFIGURATION CELERY (REDIS) ====================
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Casablanca'  # Utilise le même fuseau horaire que Django (Africa/Casablanca)
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
@@ -160,6 +178,37 @@ STATIC_URL = 'static/'
 
 
 CORS_ALLOW_ALL_ORIGINS = True  # Pour le développement
+
+# ==================== CONFIGURATION JWT (TOKEN) ====================
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=10),      # 8 heures au lieu de 5 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),      # 7 jours
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    
+    'JTI_CLAIM': 'jti',
+}
+
+TELECONSULT_API_KEY = os.getenv('TELECONSULT_API_KEY', 'medpredict@2026')
 
 # Optionnel : Mettre en Français et fuseau horaire local
 LANGUAGE_CODE = 'fr-fr'

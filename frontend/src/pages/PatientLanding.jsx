@@ -1,12 +1,21 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowRight, ShieldCheck, Calendar, Mail } from 'lucide-react';
+import { Users, ArrowRight, ShieldCheck, Mail, ArrowLeft } from 'lucide-react';
 
 const PatientLanding = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center p-6 relative">
+      {/* Flèche retour en haut à gauche */}
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-6 left-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors z-10"
+      >
+        <ArrowLeft size={20} />
+        <span className="text-sm">Retour à l'accueil</span>
+      </button>
+
       <div className="max-w-2xl w-full">
         {/* Header */}
         <div className="text-center mb-12">
@@ -64,16 +73,6 @@ const PatientLanding = () => {
           <div className="text-center text-xs text-slate-500 pt-6 border-t border-white/5">
             Vos données sont protégées et conformes aux normes de confidentialité médicales.
           </div>
-        </div>
-
-        {/* Lien retour */}
-        <div className="text-center mt-8">
-          <button 
-            onClick={() => navigate('/')}
-            className="text-slate-400 hover:text-white text-sm flex items-center gap-2 mx-auto"
-          >
-            ← Retour à l'accueil
-          </button>
         </div>
       </div>
     </div>

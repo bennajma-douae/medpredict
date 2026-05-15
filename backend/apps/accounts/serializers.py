@@ -4,6 +4,8 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     # Champ calculé : indique au Frontend si un dossier Patient existe pour cet User
     patient_id = serializers.SerializerMethodField()
+    nom = serializers.CharField(source='last_name', required=False, allow_blank=True)
+    prenom = serializers.CharField(source='first_name', required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -11,6 +13,8 @@ class UserSerializer(serializers.ModelSerializer):
             'id',
             'username',
             'email',
+            'nom',
+            'prenom',
             'role',
             'password',
             'patient_id',

@@ -55,7 +55,6 @@ const Login = () => {
     e.preventDefault();
     const result = await login(username, password);
     if (result.success) {
-      // Redirection dynamique selon le rôle après connexion
       if (result.role === 'PATIENT') {
         navigate('/patient-dashboard');
       } else {
@@ -71,12 +70,12 @@ const Login = () => {
       {/* BACKGROUND GLOW DYNAMIQUE */}
       <div className={`fixed top-[-10%] left-[-10%] w-[50%] h-[50%] blur-[120px] rounded-full -z-10 opacity-20 ${current.bg}`}></div>
 
-      {/* BOUTON RETOUR CHOIX RÔLE */}
+      {/* BOUTON RETOUR */}
       <button 
-        onClick={() => navigate('/connexion')}
+        onClick={() => navigate('/patient')}
         className="absolute top-10 left-10 text-slate-400 hover:text-white flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest transition"
       >
-        <ArrowLeft size={16} /> Changer de session
+        <ArrowLeft size={16} /> Retour à l'espace patient
       </button>
 
       <div className="max-w-md w-full glass p-10 rounded-[40px] border-white/5 relative shadow-2xl">
@@ -137,7 +136,7 @@ const Login = () => {
             <p className="text-slate-500 text-xs font-medium">
               Nouveau patient ?{' '}
               <span 
-                onClick={() => navigate('/signup')} 
+                onClick={() => navigate('/patient/signup')} 
                 className="text-teal-400 cursor-pointer font-bold hover:underline ml-1"
               >
                 Créer un compte santé
