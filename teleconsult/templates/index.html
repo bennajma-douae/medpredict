@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedPredict — Téléconsultation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+
+<!-- ── Fond animé ── -->
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- ── Navigation ── -->
+<nav class="nav">
+  <div class="nav-logo">
+    <span class="logo-cross">✚</span>
+    <span>Med<strong>Predict</strong></span>
+  </div>
+  <span class="nav-badge">Téléconsultation v1</span>
+</nav>
+
+<!-- ── Hero ── -->
+<main class="hero">
+  <div class="hero-left">
+    <p class="hero-eyebrow">Intelligence Médicale · WebRTC · IA</p>
+    <h1 class="hero-title">
+      La consultation<br/>
+      <em>réinventée.</em>
+    </h1>
+    <p class="hero-sub">
+      Connectez patients et médecins en temps réel. Enregistrez,
+      transcrivez automatiquement en français, arabe ou anglais,
+      et gardez une trace structurée de chaque consultation.
+    </p>
+    <ul class="feature-pills">
+      <li>🎥 Visio HD (Jitsi)</li>
+      <li>🎙️ Transcription Whisper</li>
+      <li>🌐 Multilingue</li>
+      <li>🔒 Salle privée générée</li>
+    </ul>
+  </div>
+
+  <div class="hero-right">
+    <div class="card" id="setupCard">
+      <div class="card-header">
+        <span class="card-icon">🩺</span>
+        <h2>Démarrer une consultation</h2>
+        <p>Renseignez les participants pour générer votre salle privée.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="doctorName">Nom du médecin</label>
+        <div class="input-wrap">
+          <span class="input-icon">👨‍⚕️</span>
+          <input type="text" id="doctorName" placeholder="Dr. Amrani" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="patientName">Nom du patient</label>
+        <div class="input-wrap">
+          <span class="input-icon">🧑</span>
+          <input type="text" id="patientName" placeholder="Mohammed El Fassi" />
+        </div>
+      </div>
+
+      <div class="role-select">
+        <p>Vous êtes :</p>
+        <div class="role-buttons">
+          <button class="role-btn active" data-role="doctor">👨‍⚕️ Médecin</button>
+          <button class="role-btn" data-role="patient">🧑 Patient</button>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="startBtn" onclick="createRoom()">
+        <span class="btn-icon">▶</span> Créer la consultation
+      </button>
+
+      <div id="errorMsg" class="error-msg hidden"></div>
+    </div>
+
+    <!-- ── Carte "Rejoindre" ── -->
+    <div class="card card-join" id="joinCard" style="display:none;">
+      <div class="card-header">
+        <span class="card-icon">🔗</span>
+        <h2>Salle créée !</h2>
+        <p>Partagez ce lien avec l'autre participant.</p>
+      </div>
+
+      <div class="room-info">
+        <div class="room-id" id="roomIdDisplay">—</div>
+        <button class="btn-copy" id="copyBtn" onclick="copyLink()">📋 Copier le lien</button>
+      </div>
+
+      <div class="join-buttons">
+        <button class="btn-primary" id="joinMeBtn" onclick="joinConsultation('me')">
+          Rejoindre en tant que <strong id="myRoleLabel">Médecin</strong>
+        </button>
+        <button class="btn-secondary" onclick="reset()">← Nouvelle consultation</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let currentRoom = null;
+  let myRole = "doctor";
+
+  // Sélection du rôle
+  document.querySelectorAll(".role-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      myRole = btn.dataset.role;
+    });
+  });
+
+  async function createRoom() {
+    const doctor  = document.getElementById("doctorName").value.trim()  || "Médecin";
+    const patient = document.getElementById("patientName").value.trim() || "Patient";
+    const btn = document.getElementById("startBtn");
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Génération…';
+
+    try {
+      const res  = await fetch("/api/create-room", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ doctor, patient }),
+      });
+      const data = await res.json();
+      currentRoom = data;
+
+      document.getElementById("roomIdDisplay").textContent = data.room_id;
+      document.getElementById("myRoleLabel").textContent =
+        myRole === "doctor" ? "Médecin" : "Patient";
+
+      document.getElementById("setupCard").style.display = "none";
+      document.getElementById("joinCard").style.display  = "block";
+
+    } catch (e) {
+      showError("Impossible de créer la salle. Vérifiez que le backend Flask est lancé.");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">▶</span> Créer la consultation';
+    }
+  }
+
+  function joinConsultation(who) {
+    if (!currentRoom) return;
+    const params = new URLSearchParams({
+      room:    currentRoom.room_id,
+      role:    myRole,
+      patient: currentRoom.patient,
+      doctor:  currentRoom.doctor,
+    });
+    window.location.href = `/consultation?${params}`;
+  }
+
+  function copyLink() {
+    if (!currentRoom) return;
+    const params = new URLSearchParams({
+      room:    currentRoom.room_id,
+      role:    myRole === "doctor" ? "patient" : "doctor",
+      patient: currentRoom.patient,
+      doctor:  currentRoom.doctor,
+    });
+    const link = `${location.origin}/consultation?${params}`;
+    navigator.clipboard.writeText(link).then(() => {
+      const btn = document.getElementById("copyBtn");
+      btn.textContent = "✅ Copié !";
+      setTimeout(() => btn.textContent = "📋 Copier le lien", 2000);
+    });
+  }
+
+  function reset() {
+    currentRoom = null;
+    document.getElementById("setupCard").style.display = "block";
+    document.getElementById("joinCard").style.display  = "none";
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("errorMsg");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    setTimeout(() => el.classList.add("hidden"), 4000);
+  }
+</script>
+</body>
+</html>

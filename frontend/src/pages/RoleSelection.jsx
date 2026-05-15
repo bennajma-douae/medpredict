@@ -54,7 +54,7 @@ const RoleSelection = () => {
       </div>
 
       {/* CARDS GRID */}
-      <div className="grid md:grid-cols-3 gap-8 max-w-6xl w-full">
+      <div className="grid md:grid-cols-2 gap-8 max-w-4xl w-full relative z-10">
         <RoleCard 
           icon={Stethoscope}
           title="Médecin"

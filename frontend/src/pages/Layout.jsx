@@ -1,87 +1,98 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Users, Calendar, ClipboardList, 
-  LogOut, Bell, Search, Stethoscope 
+import {
+LayoutDashboard, Users, Calendar, ClipboardList,
+LogOut, Bell, User, FileText, Stethoscope, Activity
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
-
+// Définition du composant SidebarItem (NE PAS OUBLIER)
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <div 
     onClick={onClick}
-    className={`flex items-center gap-3 p-3 cursor-pointer rounded-2xl transition-all duration-300 ${
+    className={`flex items-center gap-3 p-4 cursor-pointer rounded-2xl transition-all duration-300 ${
       active 
-      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-      : 'text-slate-500 hover:bg-white/5 hover:text-blue-400'
+      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+      : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
     }`}
   >
     <Icon size={20} />
-    <span className="font-bold text-xs uppercase tracking-widest">{label}</span>
+    <span className="font-bold text-sm">{label}</span>
   </div>
 );
-
 const Layout = ({ children }) => {
-  const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
-  const location = useLocation();
+const { user, logout } = useAuthStore();
+const navigate = useNavigate();
+const location = useLocation();
+const isMedecin = user?.role === 'MEDECIN';
+const menuItems = isMedecin ? [
+{ icon: LayoutDashboard, label: "Mon Agenda", path: "/dashboard" },
+{ icon: Users, label: "Mes Patients", path: "/patients" },
+{ icon: Activity, label: "Statistiques", path: "/stats" },
+] : [
+{ icon: User, label: "Mes Infos", path: "/patient-dashboard" },
+{ icon: Calendar, label: "Mes RDV", path: "/patient-appointments" },
+{ icon: FileText, label: "Mon Dossier", path: "/patient-record" },
+];
+return (
+<div className="flex h-screen bg-slate-50 text-slate-800 overflow-hidden font-sans">
+{/* Sidebar */}
+<aside className="w-72 bg-white border-r border-slate-200 p-8 flex flex-col shadow-sm">
+<div className="flex items-center gap-3 mb-12">
+<div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg">
+<Stethoscope size={26} />
+</div>
+<span className="text-2xl font-black text-slate-800 tracking-tight">MedPredict</span>
+</div>
+<nav className="flex-1 space-y-2">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 px-4">
+        {isMedecin ? "Portail Praticien" : "Espace Patient"}
+      </p>
+      
+      {menuItems.map((item, idx) => (
+        <SidebarItem
+          key={idx}
+          icon={item.icon}
+          label={item.label}
+          active={location.pathname === item.path}
+          onClick={() => navigate(item.path)}
+        />
+      ))}
+    </nav>
 
-  return (
-    <div className="flex h-screen bg-[#020617] text-slate-300 overflow-hidden">
-      {/* GLOWS D'ARRIÈRE-PLAN */}
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none"></div>
-
-      {/* SIDEBAR */}
-      <aside className="w-72 glass border-r border-white/5 p-6 flex flex-col z-10">
-        <div className="flex items-center gap-3 mb-12 px-2">
-          <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/40">
-            <Stethoscope size={22} />
-          </div>
-          <span className="text-xl font-black text-white italic tracking-tighter uppercase">MedPredict</span>
-        </div>
-
-        <nav className="flex-1 space-y-3">
-          <SidebarItem icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} onClick={() => navigate('/dashboard')} />
-          <SidebarItem icon={Users} label="Patients" active={location.pathname === '/patients'} onClick={() => navigate('/patients')} />
-          <SidebarItem icon={Calendar} label="Rendez-vous" active={location.pathname === '/appointments'} />
-          <SidebarItem icon={ClipboardList} label="Consultations" active={location.pathname === '/consultations'} />
-        </nav>
-
-        <div className="mt-auto pt-6 border-t border-white/5">
-          <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-3 w-full p-4 text-red-400 hover:bg-red-500/10 rounded-2xl transition-all font-bold text-xs uppercase tracking-widest">
-            <LogOut size={20} /> Déconnexion
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
-        <header className="h-20 glass border-b border-white/5 flex items-center justify-between px-10">
-          <div className="relative w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input type="text" placeholder="Rechercher..." className="w-full pl-12 pr-4 py-2.5 bg-white/5 border border-white/5 rounded-2xl text-sm focus:border-blue-500/50 outline-none transition-all" />
-          </div>
-
-          <div className="flex items-center gap-6">
-            <button className="relative text-slate-400 hover:text-blue-400 transition">
-              <Bell size={22} />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full"></span>
-            </button>
-            <div className="flex items-center gap-4 pl-6 border-l border-white/10">
-              <div className="text-right">
-                <p className="text-sm font-black text-white tracking-tight">Dr. Ahmed Alami</p>
-                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Médecin Directeur</p>
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg flex items-center justify-center text-white font-black">AA</div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-10">
-          {children}
-        </main>
-      </div>
+    <div className="mt-auto pt-8 border-t border-slate-100">
+      <button 
+        onClick={() => { logout(); navigate('/'); }}
+        className="flex items-center gap-3 w-full p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all font-bold text-sm"
+      >
+        <LogOut size={20} /> Déconnexion
+      </button>
     </div>
-  );
-};
+  </aside>
 
+  {/* Main Content */}
+  <div className="flex-1 flex flex-col overflow-hidden">
+    <header className="h-20 bg-white border-b border-slate-200 px-10 flex items-center justify-between shadow-sm z-10">
+      <div className="font-bold text-lg text-slate-700">
+         Bonjour, Dr. <span className="text-blue-600">{user?.username}</span>
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="font-bold text-sm leading-none text-slate-800">{user?.username}</p>
+            <p className="text-[10px] font-black uppercase text-blue-600 mt-1">{user?.role}</p>
+          </div>
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-black">
+            {user?.username?.charAt(0).toUpperCase()}
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main className="flex-1 overflow-y-auto p-10 bg-slate-50/50">
+      {children}
+    </main>
+  </div>
+</div>
+);
+};
 export default Layout;

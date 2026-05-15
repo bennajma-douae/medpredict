@@ -21,3 +21,6 @@ class RendezVous(models.Model):
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='EN_ATTENTE')
     motif = models.TextField()
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='PRESENTIEL')
+    visio_room_id = models.CharField(max_length=100, blank=True, null=True)
+    visio_access_code = models.CharField(max_length=10, blank=True, null=True)
+    visio_code_expires_at = models.DateTimeField(blank=True, null=True)  # Expiration

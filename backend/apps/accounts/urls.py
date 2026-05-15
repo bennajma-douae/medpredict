@@ -3,14 +3,12 @@ from rest_framework.routers import DefaultRouter
 from .views import UserViewSet
 
 router = DefaultRouter()
-router.register(r'', UserViewSet, basename='user')   # basename ajouté (bonne pratique)
+# Le router va créer automatiquement les routes pour :
+# - /api/users/ (GET, POST)
+# - /api/users/me/ (GET)
+# - /api/users/activate/<uidb64>/<token>/ (GET, POST)
+router.register(r'', UserViewSet, basename='user')
 
 urlpatterns = [
     path('', include(router.urls)),
-    
-    # Route personnalisée pour la vérification d'email
-    # Elle sera accessible via : /api/users/verify-email/<uid>/<token>/
-    path('verify-email/<str:uidb64>/<str:token>/', 
-         UserViewSet.as_view({'get': 'verify_email'}), 
-         name='verify-email'),
 ]

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedPredict - Vérification d'accès</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-indigo-900 to-purple-900 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">Accès sécurisé</h1>
+            <p class="text-gray-500 text-sm mt-2">
+                Consultation avec <strong>{{ doctor_name }}</strong><br>
+                Patient: <strong>{{ patient_name }}</strong>
+            </p>
+        </div>
+
+        <form id="codeForm" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Code d'accès à 6 chiffres
+                </label>
+                <input type="text" id="accessCode" maxlength="6" 
+                       class="w-full text-center text-2xl tracking-[0.5em] font-mono p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="● ● ● ● ● ●"
+                       autocomplete="off">
+            </div>
+
+            <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-3">
+                <p class="text-red-600 text-sm text-center" id="errorText"></p>
+            </div>
+
+            <button type="submit" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                Vérifier et accéder
+            </button>
+        </form>
+
+        <div class="mt-6 text-center text-xs text-gray-400">
+            Le code vous a été envoyé par email.<br>
+            Il expire 1 heure après le début de la consultation.
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('codeForm');
+        const codeInput = document.getElementById('accessCode');
+        const errorDiv = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        
+        // Récupérer les paramètres URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const rdvId = urlParams.get('rdvId');
+        
+        // Permettre seulement les chiffres
+        codeInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        });
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const code = codeInput.value;
+            
+            if (code.length !== 6) {
+                showError('Veuillez entrer un code à 6 chiffres');
+                return;
+            }
+            
+            // Désactiver le bouton pendant la vérification
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> Vérification...';
+            
+            try {
+                const response = await fetch('/api/validate-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        room_id: roomId,
+                        code: code.replace(/\s/g, ''),
+                        rdv_id: rdvId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.valid) {
+                    // Code valide, rediriger vers la consultation
+                    const consultationUrl = `/consultation?room=${roomId}&role=patient&rdvId=${rdvId}&patient={{ patient_name }}&doctor={{ doctor_name }}&validated=true`;
+                    window.location.href = consultationUrl;
+                } else {
+                    showError(data.error || 'Code invalide. Veuillez réessayer.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg> Vérifier et accéder`;
+                }
+            } catch (err) {
+                showError('Erreur de connexion. Veuillez réessayer.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">...</svg> Vérifier et accéder';
+            }
+        });
+        
+        function showError(message) {
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // Focus automatique sur le champ code
+        codeInput.focus();
+    </script>
+</body>
+</html>
