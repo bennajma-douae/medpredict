@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/appointments/', include('apps.appointments.urls')),
     path('api/consultations/', include('apps.consultations.urls')),
     path('api/prescriptions/', include('apps.prescriptions.urls')),
+    path('api/chat/', include('apps.chat.urls')),
     
     # Authentification JWT (C'est ce que ton Frontend utilise pour le Login)
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
