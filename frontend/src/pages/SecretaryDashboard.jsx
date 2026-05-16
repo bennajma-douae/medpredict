@@ -6,6 +6,7 @@ import {
   Filter, ArrowUpDown, Stethoscope, Video, User
 } from 'lucide-react';
 import useSecretaryStore from '../store/secretaryStore';
+import { toast, confirmAlert } from '../store/uiStore';
 import axios from 'axios';
 
 const SecretaryDashboard = () => {
@@ -22,10 +23,23 @@ const SecretaryDashboard = () => {
   const [patientDraft, setPatientDraft] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [occupiedSlots, setOccupiedSlots] = useState([]);
 
   useEffect(() => { 
     fetchRequests(); 
   },[]);
+
+  // ✅ AJOUT : Récupérer les créneaux occupés quand la date de déplacement change
+  useEffect(() => {
+    if (rescheduleData.date) {
+      const token = localStorage.getItem('token');
+      axios.get(`http://localhost:8000/api/appointments/occupied_slots/?date=${rescheduleData.date}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => setOccupiedSlots(res.data)).catch(err => console.error(err));
+    } else {
+      setOccupiedSlots([]);
+    }
+  }, [rescheduleData.date]);
 
   // Récupérer les infos du PatientDraft
   const fetchPatientDraft = async (userId) => {
@@ -84,26 +98,30 @@ const SecretaryDashboard = () => {
     const result = await confirmRequest(rdvId);
     if (result.success) {
       // Notification envoyée automatiquement par le backend
-      alert("RDV confirmé ! Le patient a été notifié par email.");
+      toast.success("RDV confirmé ! Le patient a été notifié par email.");
+    } else if (result.error) {
+      const errorMessage = typeof result.error === 'object' ? (result.error.error || JSON.stringify(result.error)) : result.error;
+      toast.error(errorMessage);
     }
   };
 
   const handleCancel = async (rdvId) => {
-    if (window.confirm("Êtes-vous sûr de vouloir annuler ce rendez-vous ? Le patient sera notifié.")) {
+    const isConfirmed = await confirmAlert("Êtes-vous sûr de vouloir annuler ce rendez-vous ? Le patient sera notifié.", "Annuler le rendez-vous");
+    if (isConfirmed) {
       await cancelRequest(rdvId);
-      alert("RDV annulé. Le patient a été notifié.");
+      toast.info("RDV annulé. Le patient a été notifié.");
     }
   };
 
   const handleReschedule = async (rdvId) => {
     if (!rescheduleData.date || !rescheduleData.heure) {
-      alert("Veuillez sélectionner une date et une heure.");
+      toast.warning("Veuillez sélectionner une date et une heure.");
       return;
     }
     await rescheduleRequest(rdvId, rescheduleData);
     setShowRescheduleModal(false);
     setRescheduleData({ date: '', heure: '' });
-    alert("RDV déplacé ! Le patient a été notifié.");
+    toast.success("RDV déplacé ! Le patient a été notifié.");
   };
 
   const getStatusBadge = (statut) => {
@@ -226,6 +244,21 @@ const SecretaryDashboard = () => {
                         <p className="text-indigo-600 text-xs mt-2 font-medium">
                           Motif : {req.motif}
                         </p>
+                        {req.statut === 'PROPOSE' && (
+                          <span className="mt-2 inline-block bg-purple-50 text-purple-600 px-2 py-1 rounded-md text-[10px] font-black uppercase border border-purple-200">
+                            ⏳ En attente réponse patient
+                          </span>
+                        )}
+                        {req.statut === 'PATIENT_ACCEPTE' && (
+                          <span className="mt-2 inline-block bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md text-[10px] font-black uppercase border border-emerald-200">
+                            ✅ Le patient a accepté
+                          </span>
+                        )}
+                        {req.statut === 'PATIENT_REFUSE' && (
+                          <span className="mt-2 inline-block bg-red-50 text-red-600 px-2 py-1 rounded-md text-[10px] font-black uppercase border border-red-200">
+                            ❌ Le patient a refusé
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -238,29 +271,36 @@ const SecretaryDashboard = () => {
                       >
                         <Eye size={18} />
                       </button>
-                      <button 
-                        onClick={() => {
-                          setSelectedRequest(req);
-                          setShowRescheduleModal(true);
-                        }}
-                        className="p-3 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-                        title="Déplacer le RDV"
-                      >
-                        <Edit3 size={18} />
-                      </button>
+
+                      {req.statut !== 'PROPOSE' && req.statut !== 'PATIENT_REFUSE' && (
+                        <button 
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setShowRescheduleModal(true);
+                          }}
+                          className="p-3 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                          title="Déplacer le RDV"
+                        >
+                          <Edit3 size={18} />
+                        </button>
+                      )}
+
                       <button 
                         onClick={() => handleCancel(req.id)}
-                        className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                        className={`p-3 rounded-xl transition-all ${req.statut === 'PATIENT_REFUSE' ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}
                         title="Annuler"
                       >
                         <XCircle size={18} />
                       </button>
-                      <button 
-                        onClick={() => handleConfirm(req.id)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
-                      >
-                        <Check size={16} /> Confirmer
-                      </button>
+
+                      {req.statut !== 'PROPOSE' && req.statut !== 'PATIENT_REFUSE' && (
+                        <button 
+                          onClick={() => handleConfirm(req.id)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+                        >
+                          <Check size={16} /> Confirmer
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -456,19 +496,31 @@ const SecretaryDashboard = () => {
                   className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold"
                 />
               </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Nouvelle heure</label>
-                <select
-                  value={rescheduleData.heure}
-                  onChange={(e) => setRescheduleData({...rescheduleData, heure: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold"
-                >
-                  <option value="">Choisir un créneau</option>
-                  {['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'].map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
-              </div>
+              {rescheduleData.date && (
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Nouvelle heure</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'].map(h => {
+                      const isTaken = occupiedSlots.includes(h);
+                      return (
+                        <button 
+                          key={h} 
+                          type="button" 
+                          disabled={isTaken} 
+                          onClick={() => setRescheduleData({...rescheduleData, heure: h})} 
+                          className={`py-3 rounded-lg text-xs font-black border transition-all ${
+                            rescheduleData.heure === h ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 
+                            isTaken ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' : 
+                            'bg-white text-slate-600 border-slate-200 hover:border-indigo-500'
+                          }`}
+                        >
+                          {h}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <button 
                 onClick={() => handleReschedule(selectedRequest.id)}
                 className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg"

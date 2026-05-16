@@ -132,6 +132,64 @@
   </div>
 </div>
 
+<!-- ── Toast personnalisé ── -->
+<div id="customToastContainer" style="position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:12px;align-items:center;pointer-events:none;"></div>
+
+<!-- ── Modal personnalisée (remplacement d'alert) ── -->
+<div class="modal-overlay hidden" id="customAlertModal" style="z-index:100000;">
+  <div class="modal" style="max-width:420px;text-align:center;">
+    <div class="modal-icon" id="customAlertIcon">✅</div>
+    <h2 id="customAlertTitle">Information</h2>
+    <p id="customAlertMessage"></p>
+    <button class="btn-primary" id="customAlertCloseBtn" style="margin-top:16px;">✕ Fermer</button>
+  </div>
+</div>
+
+<style>
+@keyframes toastSlideIn {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+</style>
+
+<script>
+function showCustomAlert(message, icon, title) {
+  icon = icon || '✅';
+  title = title || 'Information';
+  document.getElementById('customAlertIcon').textContent = icon;
+  document.getElementById('customAlertTitle').textContent = title;
+  document.getElementById('customAlertMessage').textContent = message;
+  document.getElementById('customAlertModal').classList.remove('hidden');
+}
+function closeCustomAlert() {
+  document.getElementById('customAlertModal').classList.add('hidden');
+}
+document.getElementById('customAlertCloseBtn').addEventListener('click', closeCustomAlert);
+
+function showToast(message, type) {
+  type = type || 'info';
+  var container = document.getElementById('customToastContainer');
+  var icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  var colors = { success: '#059669', error: '#dc2626', warning: '#d97706', info: '#2563eb' };
+  var toast = document.createElement('div');
+  toast.style.cssText = 'background:white;border:1px solid #e2e8f0;border-left:4px solid ' + (colors[type] || colors.info) + ';box-shadow:0 10px 40px rgba(0,0,0,0.15);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:12px;min-width:320px;max-width:480px;pointer-events:auto;animation:toastSlideIn 0.3s ease-out;font-family:DM Sans,sans-serif;';
+  var iconSpan = document.createElement('span');
+  iconSpan.style.fontSize = '18px';
+  iconSpan.textContent = icons[type] || icons.info;
+  var msgSpan = document.createElement('span');
+  msgSpan.style.cssText = 'flex:1;font-size:13px;font-weight:600;color:#1e293b;';
+  msgSpan.textContent = message;
+  var closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;padding:4px;line-height:1;';
+  closeBtn.textContent = '✕';
+  closeBtn.addEventListener('click', function() { toast.remove(); });
+  toast.appendChild(iconSpan);
+  toast.appendChild(msgSpan);
+  toast.appendChild(closeBtn);
+  container.appendChild(toast);
+}
+</script>
+
 <script src="/static/js/consultation.js"></script>
 </body>
 </html>

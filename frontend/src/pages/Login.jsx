@@ -11,6 +11,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
+import { toast } from '../store/uiStore';
 
 const Login = () => {
   const [searchParams] = useSearchParams();
@@ -55,13 +56,19 @@ const Login = () => {
     e.preventDefault();
     const result = await login(username, password);
     if (result.success) {
+      if (result.role !== role) {
+        useAuthStore.getState().logout();
+        toast.error(`Accès refusé. Ce compte appartient à un ${result.role}, mais vous essayez de vous connecter à l'espace ${role}.`);
+        return;
+      }
+
       if (result.role === 'PATIENT') {
         navigate('/patient-dashboard');
       } else {
         navigate('/dashboard');
       }
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
   };
 

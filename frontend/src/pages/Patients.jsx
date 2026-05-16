@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import usePatientStore from '../store/patientStore';
 import useAuthStore from '../store/authStore'; // ✅ AJOUTÉ
+import { toast } from '../store/uiStore';
 
 const Patients = () => {
   // ✅ AJOUTÉ : Récupérer l'utilisateur connecté pour connaître son rôle
@@ -60,7 +61,7 @@ const Patients = () => {
     if (res.success) {
       setShowModal(false);
     } else {
-      alert("Une erreur s'est produite lors de l'enregistrement.");
+      toast.error("Une erreur s'est produite lors de l'enregistrement.");
     }
   };
 

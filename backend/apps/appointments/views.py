@@ -107,7 +107,7 @@ class RendezVousViewSet(viewsets.ModelViewSet):
     def confirmer(self, request, pk=None):
         rdv = self.get_object()
         
-        if rdv.statut != 'EN_ATTENTE':
+        if rdv.statut not in ['EN_ATTENTE', 'PATIENT_ACCEPTE']:
             return Response({'error': 'Ce rendez-vous ne peut pas être confirmé.'}, status=status.HTTP_400_BAD_REQUEST)
         
         rdv.statut = 'CONFIRME'
@@ -166,11 +166,32 @@ class RendezVousViewSet(viewsets.ModelViewSet):
         
         rdv.date = new_date
         rdv.heure = new_heure
+        rdv.statut = 'PROPOSE'
         rdv.save()
         
         send_appointment_notification_task.delay(rdv.id, 'rescheduled')
         schedule_appointment_reminders.delay(rdv.id)
         
+        return Response(RendezVousSerializer(rdv).data)
+
+    @action(detail=True, methods=['patch'], url_path='accepter_proposition')
+    def accepter_proposition(self, request, pk=None):
+        rdv = self.get_object()
+        if rdv.user != request.user:
+            return Response({'error': 'Accès refusé.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        rdv.statut = 'PATIENT_ACCEPTE'
+        rdv.save()
+        return Response(RendezVousSerializer(rdv).data)
+
+    @action(detail=True, methods=['patch'], url_path='refuser_proposition')
+    def refuser_proposition(self, request, pk=None):
+        rdv = self.get_object()
+        if rdv.user != request.user:
+            return Response({'error': 'Accès refusé.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        rdv.statut = 'PATIENT_REFUSE'
+        rdv.save()
         return Response(RendezVousSerializer(rdv).data)
 
     @action(detail=False, methods=['get'], url_path='occupied_slots')

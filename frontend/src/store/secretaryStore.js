@@ -29,7 +29,9 @@ const useSecretaryStore = create((set, get) => ({
       const drafts = resPatients.data.filter(p => !p.user); // Drafts n'ont pas de user lié officiellement
       const official = resPatients.data.filter(p => p.user);
       
-      const pending = resRdv.data.filter(r => r.statut === 'EN_ATTENTE');
+      const pending = resRdv.data.filter(r => 
+        ['EN_ATTENTE', 'PROPOSE', 'PATIENT_ACCEPTE', 'PATIENT_REFUSE'].includes(r.statut)
+      );
       const todayStr = new Date().toISOString().split('T')['0'];
       const todayConfirmed = resRdv.data.filter(r => r.date === todayStr && r.statut === 'CONFIRME');
       
@@ -57,6 +59,21 @@ const useSecretaryStore = create((set, get) => ({
   },
 
   confirmRequest: async (rdvId) => {
+    // Vérifier si le RDV est déjà passé
+    const rdv = get().requests.find(r => r.id === rdvId) || get().allAppointments.find(r => r.id === rdvId);
+    
+    if (rdv && rdv.date && rdv.heure) {
+      const rdvDateTime = new Date(`${rdv.date}T${rdv.heure}`);
+      const now = new Date();
+      
+      if (rdvDateTime < now) {
+        return { 
+          success: false, 
+          error: "Ce rendez-vous est déjà passé. Vous pouvez le déplacer à une autre date." 
+        };
+      }
+    }
+
     try {
       const token = localStorage.getItem('token');
       await axios.patch(`http://localhost:8000/api/appointments/${rdvId}/confirmer/`, {}, { 
@@ -87,7 +104,7 @@ const useSecretaryStore = create((set, get) => ({
   rescheduleRequest: async (rdvId, newData) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:8000/api/appointments/${rdvId}/`, newData, {
+      await axios.patch(`http://localhost:8000/api/appointments/${rdvId}/deplacer/`, newData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       get().fetchRequests();
