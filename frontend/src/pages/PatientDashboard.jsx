@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
+import { toast, confirmAlert } from '../store/uiStore';
 import { useNavigate } from 'react-router-dom';
 
 const PatientDashboard = () => {
@@ -100,7 +101,7 @@ const PatientDashboard = () => {
   // ✅ AJOUT : Fonction pour rejoindre la téléconsultation
   const joinTeleconsultation = (appointment) => {
     if (!appointment.visio_room_id) {
-      alert("Le lien de téléconsultation n'est pas encore disponible. Veuillez attendre la confirmation du médecin.");
+      toast.warning("Le lien de téléconsultation n'est pas encore disponible. Veuillez attendre la confirmation du médecin.");
       return;
     }
     
@@ -134,8 +135,8 @@ const PatientDashboard = () => {
       await axios.patch('http://localhost:8000/api/patients/me/update/', formData, config);
       setIsEditing(false);
       fetchData();
-      alert("Profil mis à jour !");
-    } catch (err) { alert("Erreur lors de la mise à jour."); }
+      toast.success("Profil mis à jour !");
+    } catch (err) { toast.error("Erreur lors de la mise à jour."); }
   };
 
   const handleBooking = async (e) => {
@@ -146,8 +147,8 @@ const PatientDashboard = () => {
       });
       setShowBooking(false);
       fetchData();
-      alert("Demande de rendez-vous envoyée !");
-    } catch (err) { alert(err.response?.data?.error || err.response?.data?.heure || "Erreur."); }
+      toast.success("Demande de rendez-vous envoyée !");
+    } catch (err) { toast.error(err.response?.data?.error || err.response?.data?.heure || "Erreur."); }
   };
 
   const downloadPDF = async () => {
@@ -161,7 +162,34 @@ const PatientDashboard = () => {
       link.href = url;
       link.download = `Dossier_Medical_${patientInfo?.nom || 'Patient'}.pdf`;
       link.click();
-    } catch (e) { alert("Erreur PDF"); }
+    } catch (e) { toast.error("Erreur PDF"); }
+  };
+
+  const handleAcceptReschedule = async (id) => {
+    try {
+      await axios.patch(`http://localhost:8000/api/appointments/${id}/accepter_proposition/`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+      toast.success("Nouvel horaire accepté !");
+    } catch (e) {
+      toast.error("Erreur lors de l'acceptation.");
+    }
+  };
+
+  const handleRejectReschedule = async (id) => {
+    const isConfirmed = await confirmAlert("Voulez-vous vraiment refuser ce nouvel horaire ?", "Refuser la proposition");
+    if (isConfirmed) {
+      try {
+        await axios.patch(`http://localhost:8000/api/appointments/${id}/refuser_proposition/`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        fetchData();
+        toast.info("Proposition refusée.");
+      } catch (e) {
+        toast.error("Erreur lors du refus.");
+      }
+    }
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-blue-600 font-bold text-sm">Chargement...</div>;
@@ -581,9 +609,10 @@ const PatientDashboard = () => {
                           a.statut === 'CONFIRME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 
                           a.statut === 'TERMINE' ? 'bg-slate-50 text-slate-500 border-slate-200' :
                           a.statut === 'ANNULE' ? 'bg-red-50 text-red-600 border-red-200' :
+                          a.statut === 'PROPOSE' ? 'bg-purple-50 text-purple-600 border-purple-200' :
                           'bg-amber-50 text-amber-600 border-amber-200'
                         }`}>
-                          {a.statut === 'EN_ATTENTE' ? 'En attente' : a.statut}
+                          {a.statut === 'EN_ATTENTE' ? 'En attente' : a.statut === 'PROPOSE' ? 'Action requise' : a.statut}
                         </span>
                         
                         {/* ✅ BOUTON REJOINDRE LA TELECONSULTATION */}
@@ -603,6 +632,18 @@ const PatientDashboard = () => {
                             <AlertCircle size={10} />
                             En attente de confirmation
                           </span>
+                        )}
+
+                        {/* ✅ Actions pour le statut PROPOSE */}
+                        {a.statut === 'PROPOSE' && (
+                          <div className="mt-3 flex gap-2">
+                            <button onClick={() => handleAcceptReschedule(a.id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase hover:bg-emerald-700 transition-all flex items-center gap-1 shadow-sm">
+                              <Check size={12} /> Accepter
+                            </button>
+                            <button onClick={() => handleRejectReschedule(a.id)} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase hover:bg-red-100 transition-all flex items-center gap-1 border border-red-200">
+                              <X size={12} /> Refuser
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -5,6 +5,7 @@ import {
   Phone, CreditCard, Calendar, ArrowRight, ShieldCheck 
 } from 'lucide-react';
 import axios from 'axios';
+import { toast } from '../store/uiStore';
 
 const EmailActivation = () => {
   const { uidb64, token } = useParams();
@@ -52,7 +53,7 @@ const EmailActivation = () => {
       
       // Succès : Redirection vers le login ou dashboard
       // Note : Puisque le compte est activé, on demande au patient de se connecter
-      alert("Compte activé et profil créé avec succès !");
+      toast.success("Compte activé et profil créé avec succès !");
       navigate('/login?role=PATIENT');
     } catch (err) {
       setError("Une erreur est survenue lors de la création de votre profil.");

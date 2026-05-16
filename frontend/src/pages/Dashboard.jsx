@@ -14,14 +14,16 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, [fetchAppointments]);
 
-  // --- LOGIQUE ORIGINALE : Calcul des KPIs ---
-  const totalConfirmes  = todayAppointments.length;
-  const enVisio         = todayAppointments.filter(a => a.type === 'VISIO').length;
-  const enPresentiel    = todayAppointments.filter(a => a.type === 'PRESENTIEL').length;
+  // --- LOGIQUE CORRIGÉE : Calcul des KPIs (Seulement les RDV restants) ---
+  const rdvRestants = todayAppointments.filter(a => a.statut !== 'TERMINE');
 
-  // LOGIQUE ORIGINALE : Prochain RDV
+  const totalRestants = rdvRestants.length;
+  const enVisio = rdvRestants.filter(a => a.type === 'VISIO').length;
+  const enPresentiel = rdvRestants.filter(a => a.type === 'PRESENTIEL').length;
+
+  // LOGIQUE CORRIGÉE : Prochain RDV (parmi les RDV restants)
   const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-  const prochainRdv = todayAppointments
+  const prochainRdv = rdvRestants
     .filter(a => {
       const [h, m] = (a.heure || '00:00').split(':').map(Number);
       return h * 60 + m >= nowMinutes;
@@ -31,24 +33,24 @@ const Dashboard = () => {
   const kpis = [
     {
       icon: CheckCircle,
-      value: totalConfirmes,
-      label: 'Confirmés aujourd\'hui',
+      value: totalRestants,
+      label: 'RDV à faire',
       color: 'blue',
-      sub: totalConfirmes === 0 ? 'Agenda libre' : `${totalConfirmes} patient${totalConfirmes > 1 ? 's' : ''}`
+      sub: totalRestants === 0 ? 'Agenda libre' : `${totalRestants} patient${totalRestants > 1 ? 's' : ''}`
     },
     {
       icon: User,
       value: enPresentiel,
       label: 'Présentiel',
       color: 'emerald',
-      sub: enPresentiel === 0 ? 'Aucun' : `sur ${totalConfirmes} RDV`
+      sub: enPresentiel === 0 ? 'Aucun' : `sur ${totalRestants} RDV`
     },
     {
       icon: Video,
       value: enVisio,
       label: 'Visio',
       color: 'indigo',
-      sub: enVisio === 0 ? 'Aucun' : `sur ${totalConfirmes} RDV`
+      sub: enVisio === 0 ? 'Aucun' : `sur ${totalRestants} RDV`
     },
     {
       icon: Clock,
@@ -65,10 +67,10 @@ const Dashboard = () => {
 
   // STYLE : Palette Medical Light adaptée au fond blanc
   const colorMap = {
-    blue:    { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-100',  icon: 'bg-blue-600' },
-    emerald: { bg: 'bg-emerald-50',text: 'text-emerald-600',border: 'border-emerald-100',icon: 'bg-emerald-600'},
-    indigo:  { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', icon: 'bg-indigo-600' },
-    amber:   { bg: 'bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-100',  icon: 'bg-amber-600'  },
+    blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', icon: 'bg-blue-600' },
+    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', icon: 'bg-emerald-600' },
+    indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', icon: 'bg-indigo-600' },
+    amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', icon: 'bg-amber-600' },
   };
 
   return (
@@ -84,9 +86,9 @@ const Dashboard = () => {
             Mon Agenda
           </h1>
           <p className="text-slate-500 text-sm mt-2 font-medium">
-            {totalConfirmes === 0
-              ? 'Aucun rendez-vous confirmé pour aujourd\'hui.'
-              : `${totalConfirmes} rendez-vous confirmé${totalConfirmes > 1 ? 's' : ''} — cliquez sur un créneau pour démarrer la consultation.`}
+            {totalRestants === 0
+              ? 'Aucun rendez-vous en attente pour aujourd\'hui.'
+              : `${totalRestants} rendez-vous restant${totalRestants > 1 ? 's' : ''} — cliquez sur un créneau pour démarrer la consultation.`}
           </p>
         </div>
 

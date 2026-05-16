@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Video, User, PlayCircle, Clock, ChevronLeft, ChevronRight, AlertTriangle, X } from 'lucide-react'; // ✅ AJOUT : AlertTriangle, X
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from '../store/uiStore';
 
 const MedicalCalendar = ({ appointments }) => {
   const navigate = useNavigate();
-  const [viewType, setViewType]     = useState("Aujourd'hui");
-  const [now, setNow]               = useState(new Date());
+  const [viewType, setViewType] = useState("Aujourd'hui");
+  const [now, setNow] = useState(new Date());
   const [weekOffset, setWeekOffset] = useState(0); // 0 = semaine courante
-  
+
   // ✅ AJOUT : États pour la modale de confirmation
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedRdv, setSelectedRdv] = useState(null);
@@ -20,8 +21,8 @@ const MedicalCalendar = ({ appointments }) => {
 
   // ── Plages horaires (9h → 18h) ──
   const hours = [
-    '09:00','10:00','11:00','12:00',
-    '13:00','14:00','15:00','16:00','17:00'
+    '09:00', '10:00', '11:00', '12:00',
+    '13:00', '14:00', '15:00', '16:00', '17:00'
   ];
 
   // ── Jours de la semaine avec offset ──
@@ -30,7 +31,7 @@ const MedicalCalendar = ({ appointments }) => {
     const dayOfWeek = base.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     base.setDate(base.getDate() + diffToMonday + weekOffset * 7);
-    return ['Lun','Mar','Mer','Jeu','Ven'].map((label, i) => {
+    return ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'].map((label, i) => {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       return {
@@ -71,41 +72,21 @@ const MedicalCalendar = ({ appointments }) => {
 
   // ✅ AJOUT : Fonction pour gérer le clic sur un RDV
   const handleRdvClick = (rdv) => {
+    if (rdv.statut === 'TERMINE') {
+      toast.info("Cette consultation est déjà terminée et enregistrée.");
+      return;
+    }
     setSelectedRdv(rdv);
     setShowConfirmModal(true);
   };
 
   // ✅ AJOUT : Confirmer et lancer la consultation
   const handleConfirmStart = async () => {
-  setShowConfirmModal(false);
-  
-  if (selectedRdv.type === 'VISIO') {
-    try {
-      const token = localStorage.getItem('token');
-      
-      // 1. Appeler le backend pour générer le lien de téléconsultation
-      const response = await axios.post(
-        `http://localhost:8000/api/appointments/${selectedRdv.id}/generer-lien-visio/`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      if (response.data.success) {
-        // 2. Ouvrir le lien médecin
-        window.open(response.data.doctor_link, '_blank');
-        
-        // 3. Afficher une confirmation
-        alert(`Lien de téléconsultation envoyé au patient par email.\n\nLien médecin : ${response.data.doctor_link}`);
-      }
-    } catch (error) {
-      console.error("Erreur création lien visio:", error);
-      alert("Erreur lors de la création du lien de téléconsultation");
-    }
-      } else {
-    // Présentiel : ouvrir la page Consultation existante
+    setShowConfirmModal(false);
+    // On navigue vers la page de consultation pour TOUS les types de rendez-vous (Présentiel ET Visio)
+    // Ainsi le médecin pourra générer le lien depuis la page du dossier et sauvegarder la consultation à la fin.
     navigate(`/consultation/${selectedRdv.id}`);
-      }
-      };
+  };
 
   // ✅ AJOUT : Annuler
   const handleCancelStart = () => {
@@ -130,9 +111,8 @@ const MedicalCalendar = ({ appointments }) => {
                 <button
                   key={type}
                   onClick={() => setViewType(type)}
-                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                    viewType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${viewType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
                 >
                   {type}
                 </button>
@@ -214,9 +194,8 @@ const MedicalCalendar = ({ appointments }) => {
                     className={`border-r border-slate-100 last:border-r-0 relative ${isToday ? 'bg-blue-50/20' : ''}`}
                   >
                     {/* Header du jour */}
-                    <div className={`h-11 border-b border-slate-100 flex flex-col items-center justify-center sticky top-0 z-10 ${
-                      isToday ? 'bg-blue-100/50' : 'bg-white/95 backdrop-blur-sm'
-                    }`}>
+                    <div className={`h-11 border-b border-slate-100 flex flex-col items-center justify-center sticky top-0 z-10 ${isToday ? 'bg-blue-100/50' : 'bg-white/95 backdrop-blur-sm'
+                      }`}>
                       <span className={`text-[9px] font-black uppercase tracking-widest ${isToday ? 'text-blue-600' : 'text-slate-400'}`}>
                         {day.label} {day.monthLabel}
                       </span>
@@ -233,9 +212,8 @@ const MedicalCalendar = ({ appointments }) => {
                       return (
                         <div
                           key={h}
-                          className={`h-20 border-b border-slate-50 relative ${
-                            isPause ? 'bg-slate-50/50' : ''
-                          }`}
+                          className={`h-20 border-b border-slate-50 relative ${isPause ? 'bg-slate-50/50' : ''
+                            }`}
                         >
                           {isPause && (
                             <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">
@@ -245,6 +223,18 @@ const MedicalCalendar = ({ appointments }) => {
 
                           {slotRdvs.map(rdv => {
                             const isVisio = rdv.type === 'VISIO';
+                            const isTermine = rdv.statut === 'TERMINE';
+
+                            // Style de base selon le statut et le type
+                            let bgClass = '';
+                            if (isTermine) {
+                              bgClass = 'bg-slate-200 border-l-slate-400 text-slate-500 opacity-60';
+                            } else if (isVisio) {
+                              bgClass = 'bg-indigo-600 border-l-indigo-300 text-white';
+                            } else {
+                              bgClass = 'bg-blue-600 border-l-blue-300 text-white';
+                            }
+
                             return (
                               <button
                                 key={rdv.id}
@@ -253,32 +243,31 @@ const MedicalCalendar = ({ appointments }) => {
                                   absolute inset-1 rounded-2xl p-3 text-left
                                   border-l-4 cursor-pointer z-20
                                   transition-all duration-200
-                                  hover:scale-[1.02] shadow-sm
+                                  ${isTermine ? 'cursor-default' : 'hover:scale-[1.02] shadow-sm'}
                                   group flex flex-col justify-between
-                                  ${isVisio
-                                    ? 'bg-indigo-600 border-l-indigo-300 text-white'
-                                    : 'bg-blue-600 border-l-blue-300 text-white'
-                                  }
+                                  ${bgClass}
                                 `}
                               >
                                 <div className="flex justify-between items-start gap-1">
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     {isVisio
-                                      ? <Video size={10} className="text-white/90 flex-shrink-0" />
-                                      : <User size={10} className="text-white/90 flex-shrink-0" />
+                                      ? <Video size={10} className={`${isTermine ? 'text-slate-500' : 'text-white/90'} flex-shrink-0`} />
+                                      : <User size={10} className={`${isTermine ? 'text-slate-500' : 'text-white/90'} flex-shrink-0`} />
                                     }
                                     <p className="text-[10px] font-black uppercase truncate leading-tight">
                                       {rdv.patient_nom_complet || rdv.patient_nom || 'Patient'}
                                     </p>
                                   </div>
-                                  <PlayCircle
-                                    size={14}
-                                    className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-                                  />
+                                  {!isTermine && (
+                                    <PlayCircle
+                                      size={14}
+                                      className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                                    />
+                                  )}
                                 </div>
                                 <div>
-                                  <p className="text-[9px] text-white/80 font-medium truncate">{rdv.motif}</p>
-                                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md mt-1 inline-block bg-white/10 text-white`}>
+                                  <p className={`text-[9px] ${isTermine ? 'text-slate-500' : 'text-white/80'} font-medium truncate`}>{rdv.motif}</p>
+                                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md mt-1 inline-block ${isTermine ? 'bg-slate-300 text-slate-600' : 'bg-white/10 text-white'}`}>
                                     {isVisio ? 'Visio' : 'Présentiel'}
                                   </span>
                                 </div>
@@ -340,7 +329,7 @@ const MedicalCalendar = ({ appointments }) => {
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
                 <AlertTriangle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
                 <p className="text-amber-800 text-sm font-medium">
-                  {selectedRdv.type === 'VISIO' 
+                  {selectedRdv.type === 'VISIO'
                     ? "Vous allez lancer une téléconsultation. Assurez-vous que votre microphone et caméra sont fonctionnels."
                     : "Vous allez commencer la consultation présentielle. Confirmez que le patient est prêt."}
                 </p>
@@ -353,7 +342,7 @@ const MedicalCalendar = ({ appointments }) => {
                     Patient : {selectedRdv.patient_nom_complet || selectedRdv.patient_nom || 'Patient'}
                   </p>
                   <p className="text-sm text-slate-600">
-                    📅 {selectedRdv.date} à {selectedRdv.heure?.slice(0,5)}
+                    📅 {selectedRdv.date} à {selectedRdv.heure?.slice(0, 5)}
                   </p>
                   <p className="text-sm text-slate-600">
                     📝 Motif : {selectedRdv.motif}

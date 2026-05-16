@@ -4,6 +4,9 @@ from django.conf import settings
 class RendezVous(models.Model):
     STATUT_CHOICES = (
         ('EN_ATTENTE', 'En attente'), # Nouveau statut pour les demandes
+        ('PROPOSE', 'Proposé par secrétaire'),
+        ('PATIENT_ACCEPTE', 'Patient a accepté'),
+        ('PATIENT_REFUSE', 'Patient a refusé'),
         ('CONFIRME', 'Confirmé'),
         ('ANNULE', 'Annulé'),
         ('TERMINE', 'Terminé'),

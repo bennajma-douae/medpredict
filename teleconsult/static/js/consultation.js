@@ -143,7 +143,7 @@ async function startRecording() {
   try {
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   } catch (e) {
-    alert("Accès au microphone refusé. Autorisez le microphone dans les paramètres de votre navigateur.");
+    showCustomAlert("Accès au microphone refusé. Autorisez le microphone dans les paramètres de votre navigateur.", "⚠️", "Microphone requis");
     return;
   }
 
@@ -212,7 +212,7 @@ function renderSegmentsList() {
 // ─── Transcription Whisper ────────────────────────────────────────
 async function sendForTranscription() {
   if (recordedBlobs.length === 0) {
-    alert("Aucun enregistrement disponible.");
+    showCustomAlert("Aucun enregistrement disponible.", "⚠️", "Enregistrement");
     return;
   }
 
@@ -322,7 +322,7 @@ async function sendTranscriptionToBackend() {
 
 // ─── Actions sur la transcription ────────────────────────────────
 function copyTranscription() {
-  navigator.clipboard.writeText(fullTranscript).then(() => alert("✅ Transcription copiée !"));
+  navigator.clipboard.writeText(fullTranscript).then(() => showToast("Transcription copiée !", "success"));
 }
 window.copyTranscription = copyTranscription;
 
@@ -386,9 +386,20 @@ async function endConsultation() {
             rdvId: RendezVous_ID,
             transcription: fullTranscript
         }, '*');
+    } else {
+        // C'est un nouvel onglet, on affiche un message puis on le ferme
+        if (ROLE === "doctor") {
+            showCustomAlert("Consultation terminée avec succès ! Veuillez retourner sur l'application MedPredict pour finaliser le dossier médical.", "✅", "Consultation terminée");
+        } else {
+            showCustomAlert("Consultation terminée avec succès. Merci de votre confiance, vous pouvez fermer cet onglet.", "✅", "Consultation terminée");
+        }
+        
+        // Tenter de fermer l'onglet (fonctionne si ouvert par window.open)
+        window.close();
+        
+        // Afficher la modale de fin si le navigateur bloque window.close()
+        show("endModal");
     }
-    
-    show("endModal");
 }
 window.endConsultation = endConsultation;
 

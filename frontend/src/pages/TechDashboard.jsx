@@ -4,6 +4,7 @@ import {
   UserPlus, X, ChevronRight, Stethoscope, Users as UsersIcon, RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
+import { toast } from '../store/uiStore';
 
 const TechDashboard = () => {
   const [showForm, setShowForm] = useState(false);
@@ -33,9 +34,9 @@ const TechDashboard = () => {
       });
       setShowForm(false);
       fetchStaff(); // On rafraîchit la vue
-      alert(`Le compte ${formData.role} a été créé avec succès !`);
+      toast.success(`Le compte ${formData.role} a été créé avec succès !`);
     } catch (err) { 
-        alert("Erreur : Vérifiez que le nom d'utilisateur n'existe pas déjà."); 
+        toast.error("Erreur : Vérifiez que le nom d'utilisateur n'existe pas déjà."); 
     }
     <button 
       onClick={() => { logout(); navigate('/tech-ops'); }}

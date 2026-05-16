@@ -6,6 +6,7 @@ import {
   CreditCard, Clock, CheckCircle, Loader2, ExternalLink
 } from 'lucide-react';
 import axios from 'axios';
+import { toast, confirmAlert } from '../store/uiStore';
 
 // ── Utilitaire ──
 const calcAge = (dateNaissance) => {
@@ -100,7 +101,7 @@ const Consultation = () => {
     if (params.get('from') === 'teleconsult' || params.get('prescription') === 'true') {
       setIsFromTeleconsult(true);
       setTimeout(() => {
-        alert("✅ Retour de la téléconsultation. Vous pouvez maintenant finaliser le dossier médical.");
+        toast.info("Retour de la téléconsultation. Vous pouvez maintenant finaliser le dossier médical.");
       }, 500);
     }
   }, [location]);
@@ -111,14 +112,18 @@ const Consultation = () => {
       if (event.origin !== 'http://localhost:5000') return;
       
       if (event.data && event.data.type === 'END_CONSULTATION') {
-        alert("Consultation terminée. Retour au tableau de bord...");
+        toast.success("Consultation terminée. Retour au tableau de bord...");
         navigate('/dashboard');
       }
       
       if (event.data && event.data.type === 'TRANSCRIPTION_READY') {
         const transcription = event.data.text;
-        if (transcription && confirm("Une transcription est disponible. Voulez-vous l'ajouter aux symptômes ?")) {
-          setSymptomes(prev => prev + (prev ? '\n' : '') + transcription);
+        if (transcription) {
+          confirmAlert("Une transcription est disponible. Voulez-vous l'ajouter aux symptômes ?", "Transcription").then((accepted) => {
+            if (accepted) {
+              setSymptomes(prev => prev + (prev ? '\n' : '') + transcription);
+            }
+          });
         }
       }
     };
@@ -164,18 +169,31 @@ const Consultation = () => {
   }, [rdvId, isFromTeleconsult]);
 
   // ✅ AJOUT : Fonction pour ouvrir la téléconsultation (avec rôle)
-  const openTeleconsultation = () => {
-    const patientName = encodeURIComponent(rdv.patient_nom_complet || rdv.patient_nom || 'Patient');
-    const doctorName = encodeURIComponent('Dr. ' + (rdv.medecin_nom || 'Médecin'));
-    // Passer le rôle dans l'URL
-    const teleconsultUrl = `http://localhost:5000/consultation?room=${rdvId}&role=${userRole}&patient=${patientName}&doctor=${doctorName}&rdvId=${rdvId}`;
-    window.open(teleconsultUrl, '_blank');
+  const openTeleconsultation = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      // Appeler le backend pour générer le lien de téléconsultation et envoyer l'email au patient
+      const response = await axios.post(
+        `http://localhost:8000/api/appointments/${rdvId}/generer-lien-visio/`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        // Ouvrir le lien médecin dans un nouvel onglet
+        window.open(response.data.doctor_link, '_blank');
+        toast.success("Lien de téléconsultation envoyé au patient par email. Vous pouvez lancer la vidéo.");
+      }
+    } catch (error) {
+      console.error("Erreur création lien visio:", error);
+      toast.error("Erreur lors de la création du lien de téléconsultation. Veuillez réessayer.");
+    }
   };
 
   // Sauvegarde (inchangée)
   const handleSave = async () => {
     if (!symptomes.trim()) {
-      alert("Veuillez saisir au moins les symptômes.");
+      toast.warning("Veuillez saisir au moins les symptômes.");
       return;
     }
     
@@ -208,7 +226,7 @@ const Consultation = () => {
       const message = err.response?.data 
         ? JSON.stringify(err.response.data) 
         : "Le serveur ne répond pas";
-      alert("Erreur lors de l'enregistrement : " + message);
+      toast.error("Erreur lors de l'enregistrement : " + message);
       setSaving(false);
     }
   };

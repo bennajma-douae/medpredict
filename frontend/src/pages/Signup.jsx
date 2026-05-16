@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, ArrowLeft, ChevronRight, Mail, Lock, User } from 'lucide-react';
 import axios from 'axios';
+import { toast } from '../store/uiStore';
 
 const Signup = () => {
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'PATIENT' });
@@ -12,9 +13,9 @@ const Signup = () => {
     try {
       // On utilise l'API users qui a déjà le serializer.create_user
       await axios.post('http://localhost:8000/api/users/', formData);
-      alert("Compte créé ! Connectez-vous maintenant.");
+      toast.success("Compte créé ! Connectez-vous maintenant.");
       navigate('/login?role=PATIENT');
-    } catch (err) { alert("Erreur lors de l'inscription."); }
+    } catch (err) { toast.error("Erreur lors de l'inscription."); }
   };
 
   return (

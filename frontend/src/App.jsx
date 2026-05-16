@@ -17,6 +17,7 @@ import PatientSignup from './pages/PatientSignup';
 import useAuthStore from './store/authStore';
 import Consultation from './pages/Consultation';
 import EmailActivation from './pages/EmailActivation';
+import { GlobalUI } from './components/GlobalUI';
 
 function App() {
   const navigate = useNavigate();
@@ -75,9 +76,11 @@ function App() {
   }, [navigate]);
 
   return (
-    <Routes>
-      {/* 1. PAGES PUBLIQUES */}
-      <Route path="/" element={<Home />} />
+    <>
+      <GlobalUI />
+      <Routes>
+        {/* 1. PAGES PUBLIQUES */}
+        <Route path="/" element={<Home />} />
       <Route path="/connexion" element={<RoleSelection />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
@@ -146,9 +149,10 @@ function App() {
         } 
       />
 
-      {/* 6. REDIRECTION PAR DÉFAUT */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+        {/* 6. REDIRECTION PAR DÉFAUT */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
   );
 }
 
