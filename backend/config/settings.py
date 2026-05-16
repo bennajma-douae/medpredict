@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     'apps.consultations',
     'apps.prescriptions',
     'apps.dashboard', 
-    'anymail'
+    'anymail',
+    'apps.chat'
 ]
 
 
