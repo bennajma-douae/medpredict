@@ -10,12 +10,14 @@ class ConsultationSerializer(serializers.ModelSerializer):
     rdv_type = serializers.SerializerMethodField()
     medecin_nom = serializers.SerializerMethodField()
 
+    ordonnance = serializers.SerializerMethodField()
+
     class Meta:
         model = Consultation
         fields = [
             'id', 'rendezvous', 'rdv_date', 'rdv_heure', 'rdv_motif', 'rdv_type',
             'symptomes', 'diagnostic', 'notes', 'date_consultation',
-            'medecin_nom'
+            'medecin_nom', 'ordonnance'
         ]
         read_only_fields = ['id', 'date_consultation']
 
@@ -34,4 +36,13 @@ class ConsultationSerializer(serializers.ModelSerializer):
     def get_medecin_nom(self, obj):
         if obj.rendezvous and obj.rendezvous.medecin:
             return obj.rendezvous.medecin.username
+        return None
+
+    def get_ordonnance(self, obj):
+        try:
+            if hasattr(obj, 'ordonnance') and obj.ordonnance:
+                from apps.prescriptions.serializers import OrdonnanceSerializer
+                return OrdonnanceSerializer(obj.ordonnance).data
+        except Exception:
+            pass
         return None

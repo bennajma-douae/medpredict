@@ -69,6 +69,21 @@ services:
       - TZ=Africa/Casablanca
     command: python app.py
 
+  # 3. IA Service (Microservice ML/AI)
+  ia-service:
+    build: ./ia-service
+    container_name: medpredict_ia_service
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./ia-service:/app
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - FLASK_ENV=development
+      - TZ=Africa/Casablanca
+    command: python run.py --host 0.0.0.0 --port 5001
+
+
   # 3. Frontend React (Vite)
   frontend:
     build: ./frontend

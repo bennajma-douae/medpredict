@@ -353,7 +353,7 @@ PATIENTS_DATA = [
             "antecedents": ""
         },
         "official": False,
-        "rdv_draft": {"date": "2026-05-08", "heure": "09:00", "motif": "Première consultation - Bilan général", "type": "PRESENTIEL"}
+        "rdv_draft": {"date": "2026-05-18", "heure": "09:00", "motif": "Première consultation - Bilan général", "type": "PRESENTIEL"}
     },
     {
         "user": {"username": "nadia_bennis", "email": "n.bennis@email.com"},
@@ -365,7 +365,7 @@ PATIENTS_DATA = [
             "antecedents": ""
         },
         "official": False,
-        "rdv_draft": {"date": "2026-05-06", "heure": "10:30", "motif": "Consultation gynécologique de routine", "type": "PRESENTIEL"}
+        "rdv_draft": {"date": "2026-05-19", "heure": "10:30", "motif": "Consultation gynécologique de routine", "type": "PRESENTIEL"}
     },
     {
         "user": {"username": "younes_ouazzani", "email": "y.ouazzani@email.com"},
@@ -377,7 +377,7 @@ PATIENTS_DATA = [
             "antecedents": ""
         },
         "official": False,
-        "rdv_draft": {"date": "2026-05-06", "heure": "14:00", "motif": "Douleur thoracique à explorer", "type": "PRESENTIEL"}
+        "rdv_draft": {"date": "2026-05-20", "heure": "14:00", "motif": "Douleur thoracique à explorer", "type": "PRESENTIEL"}
     },
     {
         "user": {"username": "fatima_hassani", "email": "f.hassani@email.com"},
@@ -389,7 +389,7 @@ PATIENTS_DATA = [
             "antecedents": ""
         },
         "official": False,
-        "rdv_draft": {"date": "2026-05-07", "heure": "11:00", "motif": "Vaccination et bilan jeune adulte", "type": "VISIO"}
+        "rdv_draft": {"date": "2026-05-18", "heure": "11:00", "motif": "Vaccination et bilan jeune adulte", "type": "VISIO"}
     },
     {
         "user": {"username": "mohamed_tahiri", "email": "m.tahiri@email.com"},
@@ -401,7 +401,7 @@ PATIENTS_DATA = [
             "antecedents": ""
         },
         "official": False,
-        "rdv_draft": {"date": "2026-05-20", "heure": "16:00", "motif": "Suivi diabète récemment diagnostiqué", "type": "PRESENTIEL"}
+        "rdv_draft": {"date": "2026-05-22", "heure": "16:00", "motif": "Suivi diabète récemment diagnostiqué", "type": "PRESENTIEL"}
     },
 ]
 
@@ -571,19 +571,19 @@ def create_patient_draft(data, medecin):
         status="ACTIF"
     )
 
-    # 3. Créer le RDV en attente
+    # 3. Créer le RDV (CONFIRME pour que le médecin puisse le voir immédiatement dans son calendrier)
     rdv = RendezVous.objects.create(
         user=user,
         patient=None,  # Pas encore de patient officiel
         medecin=medecin,
         date=rdv_data["date"],
         heure=rdv_data["heure"],
-        statut="EN_ATTENTE",
+        statut="CONFIRME",
         motif=rdv_data["motif"],
         type=rdv_data["type"]
     )
 
-    print(f"   📝 Draft: {draft.nom_complet} - RDV {rdv_data['date']} à {rdv_data['heure']} (EN_ATTENTE)")
+    print(f"   📝 Draft: {draft.nom_complet} - RDV {rdv_data['date']} à {rdv_data['heure']} (CONFIRME)")
     return draft
 
 

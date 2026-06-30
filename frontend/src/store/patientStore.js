@@ -155,6 +155,19 @@ const usePatientStore = create((set, get) => ({
     } catch (err) {
       return { success: false, error: err.response?.data };
     }
+  },
+
+  // ✅ NOUVEAU : Obtenir le dossier complet du patient par son ID (pour le médecin)
+  fetchPatientDossierForDoctor: async (patientId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`http://localhost:8000/api/patients/${patientId}/dossier/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data };
+    }
   }
 }));
 

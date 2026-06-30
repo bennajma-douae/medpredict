@@ -25,18 +25,32 @@ const MedicalCalendar = ({ appointments }) => {
     '13:00', '14:00', '15:00', '16:00', '17:00'
   ];
 
-  // ── Jours de la semaine avec offset ──
+  // ── Formater la date en YYYY-MM-DD local (sans décalage de fuseau horaire) ──
+  const getLocalYYYYMMDD = (d) => {
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  };
+
+  // ── Jours de la semaine avec offset (Lundi à Vendredi) ──
   const getWeekDates = () => {
     const base = new Date(now);
-    const dayOfWeek = base.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const dayOfWeek = base.getDay(); // 0 = Dimanche, 1 = Lundi, ..., 6 = Samedi
+    
+    // Si on est samedi (6) ou dimanche (0), afficher par défaut la semaine qui commence le lundi suivant
+    let diffToMonday = 1 - dayOfWeek;
+    if (dayOfWeek === 0) { // Dimanche
+      diffToMonday = 1; // Demain (Lundi)
+    } else if (dayOfWeek === 6) { // Samedi
+      diffToMonday = 2; // Après-demain (Lundi)
+    }
+    
     base.setDate(base.getDate() + diffToMonday + weekOffset * 7);
+    
     return ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'].map((label, i) => {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       return {
         label,
-        date: d.toISOString().split('T')[0],
+        date: getLocalYYYYMMDD(d),
         dayNum: d.getDate(),
         monthLabel: d.toLocaleDateString('fr-FR', { month: 'short' }),
       };
@@ -44,7 +58,7 @@ const MedicalCalendar = ({ appointments }) => {
   };
 
   const days = getWeekDates();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalYYYYMMDD(new Date());
 
   // ── Position ligne temps réel ──
   const calculateLineTop = () => {
@@ -61,11 +75,30 @@ const MedicalCalendar = ({ appointments }) => {
     );
   };
 
+  // ── Générer l'objet Jour pour aujourd'hui (redirige le week-end vers le lundi suivant) ──
+  const getTodayItem = () => {
+    const d = new Date(now);
+    const dayOfWeek = d.getDay();
+    
+    // Si on est samedi (6) ou dimanche (0), le jour de travail à afficher par défaut est le lundi suivant
+    if (dayOfWeek === 0) { // Dimanche
+      d.setDate(d.getDate() + 1); // Lundi (demain)
+    } else if (dayOfWeek === 6) { // Samedi
+      d.setDate(d.getDate() + 2); // Lundi (après-demain)
+    }
+    
+    const weekdays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    return {
+      label: weekdays[d.getDay()],
+      date: getLocalYYYYMMDD(d),
+      dayNum: d.getDate(),
+      monthLabel: d.toLocaleDateString('fr-FR', { month: 'short' }),
+    };
+  };
+
   // ── Colonnes à afficher selon la vue ──
   const visibleDays = viewType === "Aujourd'hui"
-    ? days.filter(d => d.date === todayStr).length > 0
-      ? days.filter(d => d.date === todayStr)
-      : [days[0]]
+    ? [getTodayItem()]
     : days;
 
   const gridCols = viewType === "Aujourd'hui" ? 'grid-cols-1' : 'grid-cols-5';

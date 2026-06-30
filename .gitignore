@@ -19,5 +19,14 @@ dist/
 .DS_Store
 Thumbs.db
 
-#Vscode IDE
+# Vscode IDE
 .vscode/
+
+# Repomix
+repomix-output.xml
+
+# IA Service
+ia-service/reports/
+ia-service/storage/
+ia-service/models/*.pkl
+

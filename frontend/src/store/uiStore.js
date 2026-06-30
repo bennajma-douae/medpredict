@@ -7,6 +7,11 @@ const useUIStore = create((set, get) => ({
     set((state) => ({
       toasts: [...state.toasts, { id, message, type }]
     }));
+    
+    // Disparition automatique après 8 secondes
+    setTimeout(() => {
+      get().removeToast(id);
+    }, 8000);
   },
   removeToast: (id) => set((state) => ({
     toasts: state.toasts.filter(t => t.id !== id)

@@ -8,6 +8,8 @@ const useSecretaryStore = create((set, get) => ({
 
   requests: [],
   allAppointments:[],
+  allMessages: [], // ✅ Tous les messages pour le chat
+  unreadChatCount: 0, // ✅ Nombre de messages non lus
   stats: { total: 0, pending: 0, today: 0, totalPatients: 0, occupation: 0 },
   loading: false,
 
@@ -26,7 +28,7 @@ const useSecretaryStore = create((set, get) => ({
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const drafts = resPatients.data.filter(p => !p.user); // Drafts n'ont pas de user lié officiellement
+      const drafts = resPatients.data.filter(p => !p.user);
       const official = resPatients.data.filter(p => p.user);
       
       const pending = resRdv.data.filter(r => 
@@ -35,14 +37,48 @@ const useSecretaryStore = create((set, get) => ({
       const todayStr = new Date().toISOString().split('T')['0'];
       const todayConfirmed = resRdv.data.filter(r => r.date === todayStr && r.statut === 'CONFIRME');
       
-      // Calcul taux d'occupation (créneaux pris / créneaux totaux)
-      const totalSlots = 7 * 8; // 7 jours, 8 créneaux par jour
+      const totalSlots = 7 * 8;
       const occupiedSlots = resRdv.data.filter(r => r.statut === 'CONFIRME').length;
       const occupation = Math.round((occupiedSlots / totalSlots) * 100);
+
+      // ✅ Fetch all messages to calculate unread count
+      let unreadCount = 0;
+      let allMsgs = [];
+      try {
+        const resChat = await axios.get('http://localhost:8000/api/chat/', {
+           headers: { Authorization: `Bearer ${token}` }
+        });
+        allMsgs = resChat.data;
+        
+        // Calcul des non-lus en fonction du localStorage
+        const lastRead = JSON.parse(localStorage.getItem('chat_last_read') || '{}');
+        
+        // Group messages by patient to find the latest
+        const latestByPatient = {};
+        allMsgs.forEach(m => {
+           if (!latestByPatient[m.patient_user] || new Date(m.timestamp) > new Date(latestByPatient[m.patient_user].timestamp)) {
+              latestByPatient[m.patient_user] = m;
+           }
+        });
+        
+        Object.keys(latestByPatient).forEach(patientId => {
+           const lastMsg = latestByPatient[patientId];
+           if (!lastMsg.is_from_secretary) {
+              const readTime = lastRead[patientId];
+              if (!readTime || new Date(lastMsg.timestamp) > new Date(readTime)) {
+                 unreadCount++;
+              }
+           }
+        });
+      } catch (e) {
+        console.error("Erreur fetch chat global", e);
+      }
 
       set({ 
         requests: pending,
         allAppointments: resRdv.data,
+        allMessages: allMsgs,
+        unreadChatCount: unreadCount,
         stats: {
           pending: pending.length,
           today: todayConfirmed.length,
@@ -56,6 +92,13 @@ const useSecretaryStore = create((set, get) => ({
       console.error("Erreur fetchRequests:", err);
       set({ loading: false }); 
     }
+  },
+
+  markChatAsRead: (patientId) => {
+    const lastRead = JSON.parse(localStorage.getItem('chat_last_read') || '{}');
+    lastRead[patientId] = new Date().toISOString();
+    localStorage.setItem('chat_last_read', JSON.stringify(lastRead));
+    get().fetchRequests(); // Recalculer le badge global
   },
 
   confirmRequest: async (rdvId) => {

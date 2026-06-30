@@ -79,10 +79,10 @@ const Login = () => {
 
       {/* BOUTON RETOUR */}
       <button 
-        onClick={() => navigate('/patient')}
+        onClick={() => navigate(role === 'PATIENT' ? '/patient' : '/connexion')}
         className="absolute top-10 left-10 text-slate-400 hover:text-white flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest transition"
       >
-        <ArrowLeft size={16} /> Retour à l'espace patient
+        <ArrowLeft size={16} /> {role === 'PATIENT' ? "Retour à l'espace patient" : "Retour à la sélection du rôle"}
       </button>
 
       <div className="max-w-md w-full glass p-10 rounded-[40px] border-white/5 relative shadow-2xl">
@@ -154,7 +154,7 @@ const Login = () => {
 
         <div className="mt-6 text-center">
           <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">
-            Besoin d'aide ? <span className={`${current.color} cursor-pointer hover:underline`}>Contactez le support</span>
+            Besoin d'aide ? <a href="mailto:contact@medpredict.ma" className={`${current.color} hover:underline`}>Contactez le support</a>
           </p>
         </div>
       </div>

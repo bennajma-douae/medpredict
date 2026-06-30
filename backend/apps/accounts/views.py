@@ -64,6 +64,12 @@ class UserViewSet(viewsets.ModelViewSet):
                 headers={"api-key": brevo_api_key, "Content-Type": "application/json"},
                 timeout=8
             )
+            # ✅ Log la réponse pour diagnostiquer les erreurs
+            print(f"[BREVO] Status: {resp.status_code} | Réponse: {resp.text}")
+            if resp.status_code not in (200, 201):
+                print(f"[BREVO] ❌ Échec envoi email à {user.email}: {resp.text}")
+            else:
+                print(f"[BREVO] ✅ Email de vérification envoyé à {user.email}")
         except Exception as e:
             print(f"Erreur envoi email: {e}")
 
@@ -140,8 +146,93 @@ class UserViewSet(viewsets.ModelViewSet):
                 'message': 'Compte activé et profil temporaire créé avec succès !'
             }, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'], url_path='me')
+    @action(detail=False, methods=['get', 'patch', 'put'], url_path='me')
     def me(self, request):
-        """Retourne les infos de l'utilisateur connecté."""
+        """Retourne ou met à jour les infos de l'utilisateur connecté."""
+        if request.method in ['PATCH', 'PUT']:
+            serializer = UserSerializer(request.user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            # Mettre à jour le mot de passe si fourni
+            password = request.data.get('password')
+            if password:
+                user.set_password(password)
+                user.save()
+            return Response(serializer.data)
+        
         serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+
+
+from .models import CabinetConfig, EmailTemplate
+from .serializers import CabinetConfigSerializer, EmailTemplateSerializer
+
+class CabinetConfigViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request):
+        config, created = CabinetConfig.objects.get_or_create(id=1)
+        serializer = CabinetConfigSerializer(config)
+        return Response(serializer.data)
+
+    def create(self, request):
+        if request.user.role not in ['ADMIN', 'SECRETAIRE']:
+            return Response({'error': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+        config, created = CabinetConfig.objects.get_or_create(id=1)
+        serializer = CabinetConfigSerializer(config, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class EmailTemplateViewSet(viewsets.ModelViewSet):
+    queryset = EmailTemplate.objects.all()
+    serializer_class = EmailTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'key'
+
+    def list(self, request):
+        defaults = {
+            'confirmed': {
+                'label': '✅ Confirmation RDV',
+                'sujet': '✅ Votre rendez-vous est confirmé — MedPredict',
+                'corps': "Bonjour {nom_destinataire},\n\nVotre rendez-vous a été confirmé par notre secrétariat.\n\n📅 Date : {date}\n🕐 Heure : {heure}\n📍 Type : {type_visite}\n📝 Motif : {motif}\n\nUn rappel vous sera envoyé 24 heures avant votre consultation.\n\nCordialement,\nMedPredict — Système de Gestion Médicale"
+            },
+            'cancelled': {
+                'label': '❌ Annulation RDV',
+                'sujet': '❌ Votre rendez-vous a été annulé — MedPredict',
+                'corps': "Bonjour {nom_destinataire},\n\nVotre rendez-vous du {date} à {heure} a été annulé.\n\nPour prendre un nouveau rendez-vous, connectez-vous à votre espace patient ou contactez notre secrétariat.\n\nCordialement,\nMedPredict — Système de Gestion Médicale"
+            },
+            'rescheduled': {
+                'label': '📅 Déplacement de RDV',
+                'sujet': '📅 Votre rendez-vous a été déplacé — MedPredict',
+                'corps': "Bonjour {nom_destinataire},\n\nVotre rendez-vous a été déplacé à une nouvelle date.\n\n📅 Nouvelle date : {date}\n🕐 Nouvelle heure : {heure}\n📍 Type : {type_visite}\n📝 Motif : {motif}\n\nUn nouveau rappel vous sera envoyé avant la consultation.\n\nCordialement,\nMedPredict — Système de Gestion Médicale"
+            },
+            'reminder_24h': {
+                'label': '⏰ Rappel 24 heures',
+                'sujet': '⏰ Rappel : Votre rendez-vous demain — MedPredict',
+                'corps': "Bonjour {nom_destinataire},\n\nCeci est un rappel automatique pour votre rendez-vous de demain.\n\n📅 Date : {date}\n🕐 Heure : {heure}\n📍 Type : {type_visite}\n\nMerci d'être ponctuel. En cas d'empêchement, veuillez nous prévenir au plus tôt.\n\nCordialement,\nMedPredict — Système de Gestion Médicale"
+            },
+            'reminder_2h': {
+                'label': '🔔 Rappel 2 heures',
+                'sujet': '🔔 Rappel : Votre rendez-vous dans 2 heures — MedPredict',
+                'corps': "Bonjour {nom_destinataire},\n\nVotre rendez-vous est dans 2 heures !\n\n🕐 Heure : {heure}\n📍 Type : {type_visite}\n\nÀ très bientôt !\n\nCordialement,\nMedPredict — Système de Gestion Médicale"
+            },
+            'reminder_10min': {
+                'label': '⚡ Rappel 10 minutes',
+                'sujet': '🔔 Rappel : Votre rendez-vous dans 10 minutes — MedPredict',
+                'corps': "Bonjour {nom_destinataire},\n\nVotre rendez-vous commence dans 10 minutes !\n\n📅 Date : {date}\n🕐 Heure : {heure}\n📝 Motif : {motif}\n\nMerci de vous présenter ou de vous préparer à rejoindre la téléconsultation.\n\nCordialement,\nMedPredict — Soins médicaux intelligents"
+            }
+        }
+        for k, v in defaults.items():
+            EmailTemplate.objects.get_or_create(
+                key=k,
+                defaults={
+                    'label': v['label'],
+                    'sujet': v['sujet'],
+                    'corps': v['corps']
+                }
+            )
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

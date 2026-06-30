@@ -12,10 +12,12 @@ import Patients from './pages/Patients';
 import Signup from './pages/Signup';
 import PatientDashboard from './pages/PatientDashboard';
 import SecretaryDashboard from './pages/SecretaryDashboard';
+import SecretarySettings from './pages/SecretarySettings';
 import PatientLanding from './pages/PatientLanding';
 import PatientSignup from './pages/PatientSignup';
 import useAuthStore from './store/authStore';
 import Consultation from './pages/Consultation';
+import Stats from './pages/Stats';
 import EmailActivation from './pages/EmailActivation';
 import { GlobalUI } from './components/GlobalUI';
 
@@ -149,7 +151,31 @@ function App() {
         } 
       />
 
-        {/* 6. REDIRECTION PAR DÉFAUT */}
+        {/* 6. STATISTIQUES MÉDECIN */}
+        <Route
+          path="/stats"
+          element={
+            isAuthenticated && user?.role === 'MEDECIN' ? (
+              <Layout><Stats /></Layout>
+            ) : (
+              <Navigate to="/connexion" />
+            )
+          }
+        />
+
+        {/* 7. PARAMÈTRES SECRÉTAIRE */}
+        <Route
+          path="/secretary/settings"
+          element={
+            isAuthenticated && user?.role === 'SECRETAIRE' ? (
+              <SecretaryLayout><SecretarySettings /></SecretaryLayout>
+            ) : (
+              <Navigate to="/connexion" />
+            )
+          }
+        />
+
+        {/* 8. REDIRECTION PAR DÉFAUT */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
