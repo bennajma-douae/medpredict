@@ -1,45 +1,79 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  User, Calendar, FileText, ClipboardList, Plus, 
-  LogOut, Clock, AlertCircle, Phone, CreditCard, 
-  Droplet, Activity, X, Send, CheckCircle2, Stethoscope, 
+import {
+  User, Calendar, FileText, ClipboardList, Plus,
+  LogOut, Clock, AlertCircle, Phone, CreditCard,
+  Droplet, Activity, X, Send, CheckCircle2, Stethoscope,
   RefreshCw, Download, MapPin, ArrowRight, Info, Video, Edit2,
-  Bell, CalendarCheck, ShieldAlert, Check, Timer
+  Bell, CalendarCheck, ShieldAlert, Check, Timer, Mail,
+  Upload, Heart, Shield, Smile, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 import { toast, confirmAlert } from '../store/uiStore';
 import { useNavigate } from 'react-router-dom';
+import PatientChatWidget from '../components/PatientChatWidget';
+
+const AvatarRenderer = ({ base64, size = 16, className = "", initials = "P" }) => {
+  if (base64) {
+    return <img src={base64} className={`object-cover rounded-2xl ${className}`} style={{ width: size, height: size }} alt="Profil" />;
+  }
+  return (
+    <div className={`rounded-2xl flex items-center justify-center bg-blue-500 text-white font-black uppercase ${className}`} style={{ width: size, height: size, fontSize: size * 0.4 }}>
+      {initials.charAt(0)}
+    </div>
+  );
+};
+
+const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-3 p-3 w-full rounded-xl cursor-pointer transition-all duration-200 relative ${
+      active
+        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+    } ${collapsed ? 'justify-center' : ''}`}
+    title={collapsed ? label : ''}
+  >
+    <Icon size={18} className={active ? 'text-white' : ''} />
+    {!collapsed && <span className="font-bold text-xs flex-1 text-left">{label}</span>}
+  </button>
+);
+
 
 const PatientDashboard = () => {
-  const { user, token, logout } = useAuthStore();
+  const { user, token, logout, setUser } = useAuthStore();
+
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [hasProfile, setHasProfile] = useState(false); 
+  const [hasProfile, setHasProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [collapsed, setCollapsed] = useState(false);
   const [patientInfo, setPatientInfo] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showBooking, setShowBooking] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  
+
+  // État pour la photo de profil (base64)
+  const [photoBase64, setPhotoBase64] = useState(user?.photo_base64 || '');
+
   // ✅ AJOUT : État pour la notification toast
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const [formData, setFormData] = useState({ 
-    nom: '', prenom: '', telephone: '', cin: '', adresse: '',
+  const [formData, setFormData] = useState({
+    nom: '', prenom: '', telephone: '', cin: '', adresse: '', email: '',
     dateNaissance: '', genre: 'M', groupeSanguin: '', allergies: '', antecedents: ''
   });
-  
+
   const [rdvData, setRdvData] = useState({ date: '', heure: '', motif: '', type: 'PRESENTIEL', medecin: null });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  },[]);
+  }, []);
 
   const fetchData = async () => {
     if (!user?.email_verified) {
@@ -56,16 +90,17 @@ const PatientDashboard = () => {
       try {
         const resProfile = await axios.get('http://localhost:8000/api/patients/me/', config);
         const profile = resProfile.data;
-        
+
         setHasProfile(profile.is_official === true);
         setPatientInfo(profile);
 
-        setFormData({ 
-            nom: profile.nom || '', prenom: profile.prenom || '', 
-            telephone: profile.telephone || '', cin: profile.cin || '',
-            adresse: profile.adresse || '', dateNaissance: profile.dateNaissance || '',
-            genre: profile.genre || 'M', groupeSanguin: profile.groupeSanguin || '',
-            allergies: profile.allergies || '', antecedents: profile.antecedents || ''
+        setFormData({
+          nom: profile.nom || '', prenom: profile.prenom || '',
+          telephone: profile.telephone || '', cin: profile.cin || '',
+          adresse: profile.adresse || '', dateNaissance: profile.dateNaissance || '',
+          genre: profile.genre || 'M', groupeSanguin: profile.groupeSanguin || '',
+          allergies: profile.allergies || '', antecedents: profile.antecedents || '',
+          email: profile.email || user?.email || ''
         });
       } catch (e) {
         setHasProfile(false);
@@ -75,6 +110,15 @@ const PatientDashboard = () => {
       const resUsers = await axios.get('http://localhost:8000/api/users/', config);
       const doctor = resUsers.data.find(u => u.role === 'MEDECIN');
       if (doctor) setRdvData(prev => ({ ...prev, medecin: doctor.id }));
+
+      // Charger aussi les détails de l'utilisateur actuel pour la photo de profil
+      try {
+        const resUser = await axios.get('http://localhost:8000/api/users/me/', config);
+        setUser(resUser.data);
+        setPhotoBase64(resUser.data.photo_base64 || '');
+      } catch (errUser) {
+        console.error("USER ME FETCH ERROR:", errUser);
+      }
 
     } catch (err) {
       console.error("FETCH ERROR:", err);
@@ -90,7 +134,7 @@ const PatientDashboard = () => {
     const visioConfirmed = appointments.filter(
       a => a.type === 'VISIO' && a.statut === 'CONFIRME'
     );
-    
+
     if (visioConfirmed.length > 0 && !showToast) {
       setToastMessage(`📹 ${visioConfirmed.length} téléconsultation(s) disponible(s) !`);
       setShowToast(true);
@@ -104,11 +148,11 @@ const PatientDashboard = () => {
       toast.warning("Le lien de téléconsultation n'est pas encore disponible. Veuillez attendre la confirmation du médecin.");
       return;
     }
-    
+
     const patientName = encodeURIComponent(patientInfo?.prenom || user?.username || 'Patient');
     const doctorName = encodeURIComponent(appointment.medecin_nom || 'Médecin');
     const teleconsultUrl = `http://localhost:5000/consultation?room=${appointment.visio_room_id}&role=patient&rdvId=${appointment.id}&patient=${patientName}&doctor=${doctorName}`;
-    
+
     window.open(teleconsultUrl, '_blank');
   };
 
@@ -116,7 +160,7 @@ const PatientDashboard = () => {
   const activeAppointments = appointments.filter(a => a.statut === 'EN_ATTENTE' || a.statut === 'CONFIRME');
   const upcomingRdv = activeAppointments.sort((a, b) => new Date(a.date) - new Date(b.date))[0];
   const pastAppointments = appointments.filter(a => a.statut === 'TERMINE').sort((a, b) => new Date(b.date) - new Date(a.date));
-  
+
   // Calcul de l'âge
   const calcAge = (dateNaissance) => {
     if (!dateNaissance) return null;
@@ -132,11 +176,25 @@ const PatientDashboard = () => {
     e.preventDefault();
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      
+      // 1. Mettre à jour les infos du profil Patient
       await axios.patch('http://localhost:8000/api/patients/me/update/', formData, config);
+      
+      // 2. Mettre à jour la photo de profil de l'utilisateur
+      const resUser = await axios.patch('http://localhost:8000/api/users/me/', {
+        photo_base64: photoBase64
+      }, config);
+      
+      // 3. Mettre à jour useAuthStore pour refléter immédiatement le changement
+      setUser(resUser.data);
+
       setIsEditing(false);
       fetchData();
       toast.success("Profil mis à jour !");
-    } catch (err) { toast.error("Erreur lors de la mise à jour."); }
+    } catch (err) {
+      const errMsg = err.response?.data?.detail || err.response?.data?.error || "Erreur lors de la mise à jour.";
+      toast.error(errMsg);
+    }
   };
 
   const handleBooking = async (e) => {
@@ -202,7 +260,7 @@ const PatientDashboard = () => {
           <h1 className="text-xl font-bold mb-2 text-slate-800">Email non vérifié</h1>
           <p className="text-slate-500 mb-6 text-sm">Veuillez valider votre adresse <b>{user.email}</b>.</p>
           <button onClick={() => window.location.reload()} className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-black transition-all">
-            <RefreshCw size={16} className="inline mr-2"/> J'ai vérifié
+            <RefreshCw size={16} className="inline mr-2" /> J'ai vérifié
           </button>
           <button onClick={() => { logout(); navigate('/'); }} className="mt-4 text-slate-400 font-bold text-xs uppercase">Déconnexion</button>
         </div>
@@ -213,82 +271,121 @@ const PatientDashboard = () => {
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 overflow-hidden font-sans">
       {/* SIDEBAR */}
-      <aside className="w-64 bg-white border-r border-slate-100 flex flex-col p-6 shadow-sm z-20">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="bg-gradient-to-br from-blue-600 to-cyan-500 p-2 rounded-xl text-white shadow-md shadow-blue-500/20">
+      <aside
+        className={`bg-white border-r border-slate-100 flex flex-col shadow-sm z-20 transition-all duration-300 ${
+          collapsed ? 'w-20' : 'w-64'
+        }`}
+      >
+        {/* Logo */}
+        <div className={`flex items-center gap-3 p-6 border-b border-slate-100 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="bg-gradient-to-br from-blue-600 to-cyan-500 p-2 rounded-xl text-white shadow-md shadow-blue-500/20 flex-shrink-0">
             <Stethoscope size={20} />
           </div>
-          <span className="text-lg font-black text-slate-800 tracking-tight italic">MedPredict</span>
+          {!collapsed && (
+            <div className="text-left">
+              <span className="text-lg font-black text-slate-800 tracking-tight italic">MedPredict</span>
+              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Espace Patient</p>
+            </div>
+          )}
         </div>
-        
-        <nav className="flex-1 space-y-1">
-           <SidebarItem icon={Activity} label="Aperçu" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-           <SidebarItem icon={User} label="Mes Infos" active={activeTab === 'infos'} onClick={() => setActiveTab('infos')} />
-           <SidebarItem icon={Calendar} label="Mes RDV" active={activeTab === 'rdv'} onClick={() => setActiveTab('rdv')} />
-           <SidebarItem icon={FileText} label="Mon Dossier" active={activeTab === 'dossier'} onClick={() => setActiveTab('dossier')} />
-        </nav>
-        
-        <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase p-3 rounded-xl hover:bg-red-50 transition-all mt-auto">
-          <LogOut size={16} /> Déconnexion
+
+        {/* Bouton collapse */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? 'Déplier le menu' : 'Replier le menu'}
+          className="mx-4 mt-4 p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center"
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
+
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          {!collapsed && (
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 px-3">Menu Principal</p>
+          )}
+          <SidebarItem icon={Activity} label="Aperçu" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={collapsed} />
+          <SidebarItem icon={User} label="Mes Infos" active={activeTab === 'infos'} onClick={() => setActiveTab('infos')} collapsed={collapsed} />
+          <SidebarItem icon={Calendar} label="Mes RDV" active={activeTab === 'rdv'} onClick={() => setActiveTab('rdv')} collapsed={collapsed} />
+          <SidebarItem icon={FileText} label="Mon Dossier" active={activeTab === 'dossier'} onClick={() => setActiveTab('dossier')} collapsed={collapsed} />
+        </nav>
+
+        <div className="p-4 border-t border-slate-100">
+          <button
+            onClick={() => { logout(); navigate('/'); }}
+            className={`flex items-center gap-3 w-full p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all font-bold text-xs ${
+              collapsed ? 'justify-center' : ''
+            }`}
+            title={collapsed ? 'Déconnexion' : ''}
+          >
+            <LogOut size={16} />
+            {!collapsed && <span>Déconnexion</span>}
+          </button>
+        </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-y-auto p-8 relative">
         {/* HEADER */}
         <header className="flex justify-between items-center mb-8 relative z-10">
-           <div>
-             <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-               Bonjour, {patientInfo?.prenom || user?.username || 'Patient'}
-             </h1>
-             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+          <div className="flex items-center gap-4">
+            <AvatarRenderer 
+              base64={user?.photo_base64} 
+              initials={patientInfo?.prenom || user?.username || 'P'}
+              size={48} 
+              className="shadow-sm border border-slate-100"
+            />
+            <div>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tight">
+                Bonjour, {patientInfo?.prenom || user?.username || 'Patient'}
+              </h1>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
                 {hasProfile ? 'Dossier médical actif' : 'En attente de première visite'}
-            </p>
-           </div>
-           
-           <div className="flex items-center gap-4">
-             {/* NOTIFICATIONS BELL */}
-             <div className="relative">
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all relative"
-                >
-                  <Bell size={18} />
-                  {activeAppointments.length > 0 && (
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white"></span>
-                  )}
-                </button>
+              </p>
+            </div>
+          </div>
 
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                    <div className="p-4 border-b border-slate-50 bg-slate-50/50">
-                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vos Rendez-vous actifs</h4>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto p-2">
-                      {activeAppointments.length > 0 ? activeAppointments.map(a => (
-                        <div key={a.id} onClick={() => setActiveTab('rdv')} className="p-3 hover:bg-slate-50 rounded-xl transition-all cursor-pointer border-b border-transparent hover:border-slate-100">
-                          <p className="text-xs font-bold text-slate-700">Prévu le {a.date}</p>
-                          <p className="text-[10px] text-slate-500 mt-1">
-                            Statut : <span className={a.statut === 'CONFIRME' ? 'text-emerald-500 font-bold' : 'text-amber-500 font-bold'}>{a.statut}</span>
-                          </p>
-                        </div>
-                      )) : (
-                        <p className="text-xs text-slate-400 p-4 text-center">Aucune notification.</p>
-                      )}
-                    </div>
-                  </div>
+          <div className="flex items-center gap-4">
+            {/* NOTIFICATIONS BELL */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all relative"
+              >
+                <Bell size={18} />
+                {activeAppointments.length > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white"></span>
                 )}
-             </div>
+              </button>
 
-             <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 font-bold text-sm tabular-nums text-slate-600">
-               {currentTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
-             </div>
-           </div>
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="p-4 border-b border-slate-50 bg-slate-50/50">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vos Rendez-vous actifs</h4>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {activeAppointments.length > 0 ? activeAppointments.map(a => (
+                      <div key={a.id} onClick={() => setActiveTab('rdv')} className="p-3 hover:bg-slate-50 rounded-xl transition-all cursor-pointer border-b border-transparent hover:border-slate-100">
+                        <p className="text-xs font-bold text-slate-700">Prévu le {a.date}</p>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Statut : <span className={a.statut === 'CONFIRME' ? 'text-emerald-500 font-bold' : 'text-amber-500 font-bold'}>{a.statut}</span>
+                        </p>
+                      </div>
+                    )) : (
+                      <p className="text-xs text-slate-400 p-4 text-center">Aucune notification.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 font-bold text-sm tabular-nums text-slate-600">
+              {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
         </header>
 
         {/* ========== DASHBOARD DYNAMIQUE ========== */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            
+
             {/* ETAT 1 : NOUVEAU PATIENT (AUCUN RDV PRIS) */}
             {!hasProfile && !upcomingRdv && (
               <div className="space-y-6">
@@ -298,11 +395,11 @@ const PatientDashboard = () => {
                     <p className="text-blue-100 text-sm mb-8 leading-relaxed">
                       Votre compte est créé. Pour générer votre dossier médical numérique et accéder à l'ensemble de nos services, veuillez planifier votre première consultation.
                     </p>
-                    <button 
-                      onClick={() => setShowBooking(true)} 
+                    <button
+                      onClick={() => setShowBooking(true)}
                       className="bg-white text-blue-600 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-md flex items-center gap-2 hover:scale-105 transition-all"
                     >
-                      <Plus size={16}/> Prendre mon 1er RDV
+                      <Plus size={16} /> Prendre mon 1er RDV
                     </button>
                   </div>
                   <Stethoscope className="absolute -right-10 -bottom-10 opacity-10" size={180} />
@@ -313,17 +410,17 @@ const PatientDashboard = () => {
                   <div className="flex items-center justify-between relative">
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-100 -z-10"></div>
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1/2 h-1 bg-blue-500 -z-10"></div>
-                    
+
                     <div className="flex flex-col items-center gap-2 bg-white px-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"><Check size={16}/></div>
+                      <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"><Check size={16} /></div>
                       <span className="text-[10px] font-bold text-slate-600">Inscription</span>
                     </div>
                     <div className="flex flex-col items-center gap-2 bg-white px-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"><Check size={16}/></div>
+                      <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center"><Check size={16} /></div>
                       <span className="text-[10px] font-bold text-slate-600">Email vérifié</span>
                     </div>
                     <div className="flex flex-col items-center gap-2 bg-white px-2">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center"><Timer size={16}/></div>
+                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center"><Timer size={16} /></div>
                       <span className="text-[10px] font-bold text-slate-400">1er Rendez-vous</span>
                     </div>
                   </div>
@@ -338,9 +435,9 @@ const PatientDashboard = () => {
                   <div className="relative z-10 w-full md:w-2/3">
                     <div className="flex items-center gap-2 mb-3">
                       {upcomingRdv.statut === 'CONFIRME' ? (
-                        <span className="bg-emerald-500/20 text-emerald-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 flex items-center gap-1"><CheckCircle2 size={12}/> RDV Confirmé</span>
+                        <span className="bg-emerald-500/20 text-emerald-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 flex items-center gap-1"><CheckCircle2 size={12} /> RDV Confirmé</span>
                       ) : (
-                        <span className="bg-amber-500/20 text-amber-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-500/30 flex items-center gap-1"><Timer size={12}/> En attente</span>
+                        <span className="bg-amber-500/20 text-amber-100 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-500/30 flex items-center gap-1"><Timer size={12} /> En attente</span>
                       )}
                     </div>
                     <h2 className="text-2xl font-black tracking-tight mb-2">Préparation de votre visite</h2>
@@ -348,16 +445,16 @@ const PatientDashboard = () => {
                       Votre dossier médical sera généré par le médecin à l'issue de cette consultation.
                     </p>
                   </div>
-                  
+
                   <div className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-2xl text-center w-full md:w-auto min-w-[220px]">
                     <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Créneau réservé</p>
-                    <p className="text-4xl font-black mb-1">{upcomingRdv.heure.slice(0,5)}</p>
+                    <p className="text-4xl font-black mb-1">{upcomingRdv.heure.slice(0, 5)}</p>
                     <p className="text-sm font-bold text-indigo-100">{upcomingRdv.date}</p>
                   </div>
                 </div>
 
                 <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex items-start gap-4">
-                  <div className="p-3 bg-amber-50 text-amber-500 rounded-xl"><Info size={24}/></div>
+                  <div className="p-3 bg-amber-50 text-amber-500 rounded-xl"><Info size={24} /></div>
                   <div>
                     <h3 className="font-black text-slate-800 text-sm mb-1">Que dois-je préparer ?</h3>
                     <p className="text-xs text-slate-500 leading-relaxed">Pensez à vous munir de votre carte d'identité (CIN), de vos anciennes analyses ou radiographies si vous en avez, et arrivez 10 minutes avant l'heure prévue pour finaliser votre dossier à l'accueil.</p>
@@ -370,7 +467,7 @@ const PatientDashboard = () => {
             {hasProfile && (
               <div className="space-y-6">
                 <div className="grid lg:grid-cols-3 gap-6">
-                  
+
                   {/* Carte Prochain RDV - AVEC BOUTON TELECONSULTATION */}
                   <div className="col-span-2 bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex justify-between items-center relative overflow-hidden">
                     <div className="relative z-10">
@@ -378,7 +475,7 @@ const PatientDashboard = () => {
                       {upcomingRdv ? (
                         <div>
                           <p className="text-2xl font-black text-slate-800 tracking-tight mt-2 mb-2">
-                            {upcomingRdv.date} à {upcomingRdv.heure.slice(0,5)}
+                            {upcomingRdv.date} à {upcomingRdv.heure.slice(0, 5)}
                           </p>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`px-2 py-1 rounded border text-[9px] font-black uppercase ${upcomingRdv.statut === 'CONFIRME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
@@ -386,7 +483,7 @@ const PatientDashboard = () => {
                             </span>
                             <span className="text-[10px] font-bold text-slate-400">Motif : {upcomingRdv.motif}</span>
                           </div>
-                          
+
                           {/* ✅ BOUTON TELECONSULTATION DANS LA CARTE PROCHAIN RDV */}
                           {upcomingRdv.type === 'VISIO' && upcomingRdv.statut === 'CONFIRME' && (
                             <button
@@ -401,8 +498,8 @@ const PatientDashboard = () => {
                       ) : (
                         <div>
                           <p className="text-xl font-bold text-slate-600 mt-2 mb-4">Aucun rendez-vous prévu</p>
-                          <button 
-                            onClick={() => setShowBooking(true)} 
+                          <button
+                            onClick={() => setShowBooking(true)}
                             className="bg-blue-50 text-blue-600 border border-blue-100 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2"
                           >
                             <Plus size={14} /> Planifier
@@ -421,24 +518,24 @@ const PatientDashboard = () => {
                       </div>
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fiche Médicale</h3>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-transparent hover:border-slate-100 transition-colors">
                         <span className="text-xs font-bold text-slate-500">Âge patient</span>
                         <span className="text-sm font-black text-slate-800">{calcAge(patientInfo.dateNaissance) || '--'} ans</span>
                       </div>
-                      
+
                       <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-transparent hover:border-slate-100 transition-colors">
                         <span className="text-xs font-bold text-slate-500">Groupe sanguin</span>
-                        <span className="text-sm font-black text-red-500 flex items-center gap-1.5"><Droplet size={14}/> {patientInfo.groupeSanguin || '--'}</span>
+                        <span className="text-sm font-black text-red-500 flex items-center gap-1.5"><Droplet size={14} /> {patientInfo.groupeSanguin || '--'}</span>
                       </div>
-                      
+
                       <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-transparent hover:border-slate-100 transition-colors">
                         <span className="text-xs font-bold text-slate-500">Allergies</span>
                         {patientInfo.allergies ? (
-                           <span className="text-xs font-bold text-amber-500 max-w-[100px] text-right truncate flex items-center gap-1.5"><ShieldAlert size={14}/> {patientInfo.allergies}</span>
+                          <span className="text-xs font-bold text-amber-500 max-w-[100px] text-right truncate flex items-center gap-1.5"><ShieldAlert size={14} /> {patientInfo.allergies}</span>
                         ) : (
-                           <span className="text-xs font-bold text-emerald-500 flex items-center gap-1.5"><CheckCircle2 size={14}/> Aucune</span>
+                          <span className="text-xs font-bold text-emerald-500 flex items-center gap-1.5"><CheckCircle2 size={14} /> Aucune</span>
                         )}
                       </div>
                     </div>
@@ -452,12 +549,12 @@ const PatientDashboard = () => {
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Activité Récente</h3>
                     <button onClick={() => setActiveTab('dossier')} className="text-blue-600 text-[10px] font-bold uppercase hover:underline">Voir tout</button>
                   </div>
-                  
+
                   {pastAppointments.length > 0 ? (
                     <div className="space-y-4">
                       {pastAppointments.slice(0, 3).map(rdv => (
                         <div key={rdv.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-all">
-                          <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><CheckCircle2 size={16}/></div>
+                          <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><CheckCircle2 size={16} /></div>
                           <div>
                             <p className="text-xs font-bold text-slate-700">Consultation terminée</p>
                             <p className="text-[10px] text-slate-400">{rdv.date} • {rdv.motif}</p>
@@ -479,28 +576,83 @@ const PatientDashboard = () => {
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 animate-in fade-in">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-lg font-black text-slate-800 tracking-tight">Profil & Données</h3>
-              <button 
-                onClick={() => setIsEditing(!isEditing)} 
+              <button
+                onClick={() => setIsEditing(!isEditing)}
                 className={`font-bold text-[10px] uppercase tracking-widest px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${isEditing ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-600'}`}
               >
-                {isEditing ? <><X size={14}/> Annuler</> : <><Edit2 size={14}/> Modifier</>}
+                {isEditing ? <><X size={14} /> Annuler</> : <><Edit2 size={14} /> Modifier</>}
               </button>
             </div>
-            
+
             <form onSubmit={handleUpdateProfile} className="grid md:grid-cols-2 gap-6">
-              <InfoField label="Nom" value={formData.nom} isEditing={isEditing} onChange={e => setFormData({...formData, nom: e.target.value})} />
-              <InfoField label="Prénom" value={formData.prenom} isEditing={isEditing} onChange={e => setFormData({...formData, prenom: e.target.value})} />
-              <InfoField label="CIN" value={formData.cin} isEditing={isEditing} icon={CreditCard} onChange={e => setFormData({...formData, cin: e.target.value})} />
-              <InfoField label="Téléphone" value={formData.telephone} isEditing={isEditing} icon={Phone} onChange={e => setFormData({...formData, telephone: e.target.value})} />
+              {/* Photo de profil / Avatar Section */}
+              <div className="md:col-span-2 border-b border-slate-100 pb-6 mb-2">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="relative">
+                    <AvatarRenderer 
+                      base64={photoBase64} 
+                      size={80} 
+                      initials={patientInfo?.prenom || user?.username || 'P'}
+                      className="shadow-sm border-2 border-white ring-4 ring-blue-50/50"
+                    />
+                  </div>
+
+                  <div className="flex-1 space-y-2 text-center md:text-left">
+                    <h4 className="text-sm font-bold text-slate-800">Photo de profil</h4>
+                    <p className="text-[11px] text-slate-400">Importez une photo personnelle pour votre dossier médical.</p>
+                    
+                    {isEditing && (
+                      <div className="flex justify-center md:justify-start gap-2 pt-1">
+                        <label className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border bg-blue-600 border-blue-600 text-white shadow-sm hover:bg-blue-500 cursor-pointer">
+                          Choisir un fichier
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                if (file.size > 2 * 1024 * 1024) {
+                                  toast.error("L'image est trop volumineuse (max 2 Mo).");
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setPhotoBase64(reader.result);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }} 
+                          />
+                        </label>
+                        {photoBase64 && (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoBase64('')}
+                            className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-red-200 text-red-500 hover:bg-red-50 cursor-pointer"
+                          >
+                            Supprimer la photo
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <InfoField label="Nom" value={formData.nom} isEditing={isEditing} onChange={e => setFormData({ ...formData, nom: e.target.value })} />
+              <InfoField label="Prénom" value={formData.prenom} isEditing={isEditing} onChange={e => setFormData({ ...formData, prenom: e.target.value })} />
+              <InfoField label="CIN" value={formData.cin} isEditing={isEditing} icon={CreditCard} onChange={e => setFormData({ ...formData, cin: e.target.value })} />
+              <InfoField label="Téléphone" value={formData.telephone} isEditing={isEditing} icon={Phone} onChange={e => setFormData({ ...formData, telephone: e.target.value })} />
+              <InfoField label="Adresse Email" value={formData.email} isEditing={isEditing} icon={Mail} onChange={e => setFormData({ ...formData, email: e.target.value })} />
 
               {/* Date de naissance */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date de naissance</label>
                 {isEditing ? (
-                  <input type="date" value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" />
+                  <input type="date" value={formData.dateNaissance} onChange={e => setFormData({ ...formData, dateNaissance: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" />
                 ) : (
                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-transparent">
-                    <Calendar size={16} className="text-slate-400"/>
+                    <Calendar size={16} className="text-slate-400" />
                     <span className="font-bold text-slate-700 text-sm">{formData.dateNaissance ? new Date(formData.dateNaissance).toLocaleDateString('fr-FR') : "---"}</span>
                   </div>
                 )}
@@ -510,27 +662,27 @@ const PatientDashboard = () => {
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Genre</label>
                 {isEditing ? (
-                  <select value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700">
+                  <select value={formData.genre} onChange={e => setFormData({ ...formData, genre: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700">
                     <option value="M">Masculin</option>
                     <option value="F">Féminin</option>
                   </select>
                 ) : (
                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-transparent">
-                    <User size={16} className="text-slate-400"/>
+                    <User size={16} className="text-slate-400" />
                     <span className="font-bold text-slate-700 text-sm">{formData.genre === 'F' ? 'Féminin' : formData.genre === 'M' ? 'Masculin' : "---"}</span>
                   </div>
                 )}
               </div>
 
               <div className="md:col-span-2">
-                <InfoField label="Adresse" value={formData.adresse} isEditing={isEditing} icon={MapPin} onChange={e => setFormData({...formData, adresse: e.target.value})} />
+                <InfoField label="Adresse" value={formData.adresse} isEditing={isEditing} icon={MapPin} onChange={e => setFormData({ ...formData, adresse: e.target.value })} />
               </div>
 
               {/* Groupe sanguin */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Groupe sanguin</label>
                 {isEditing ? (
-                  <select value={formData.groupeSanguin} onChange={e => setFormData({...formData, groupeSanguin: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700">
+                  <select value={formData.groupeSanguin} onChange={e => setFormData({ ...formData, groupeSanguin: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700">
                     <option value="">-- Sélectionner --</option>
                     <option value="A+">A+</option><option value="A-">A-</option>
                     <option value="B+">B+</option><option value="B-">B-</option>
@@ -539,19 +691,19 @@ const PatientDashboard = () => {
                   </select>
                 ) : (
                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-transparent">
-                    <Droplet size={16} className="text-red-400"/>
+                    <Droplet size={16} className="text-red-400" />
                     <span className="font-bold text-slate-700 text-sm">{formData.groupeSanguin || "---"}</span>
                   </div>
                 )}
               </div>
 
-              <InfoField label="Allergies connues" value={formData.allergies} isEditing={isEditing} onChange={e => setFormData({...formData, allergies: e.target.value})} />
+              <InfoField label="Allergies connues" value={formData.allergies} isEditing={isEditing} onChange={e => setFormData({ ...formData, allergies: e.target.value })} />
 
               <div className="md:col-span-2">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Antécédents médicaux</label>
                   {isEditing ? (
-                    <textarea value={formData.antecedents} onChange={e => setFormData({...formData, antecedents: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700 min-h-[100px] resize-none" placeholder="Antécédents chirurgicaux, maladies chroniques..." />
+                    <textarea value={formData.antecedents} onChange={e => setFormData({ ...formData, antecedents: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700 min-h-[100px] resize-none" placeholder="Antécédents chirurgicaux, maladies chroniques..." />
                   ) : (
                     <div className="p-4 bg-slate-50 rounded-xl border border-transparent min-h-[60px]">
                       <span className="font-bold text-slate-700 text-sm whitespace-pre-wrap">{formData.antecedents || "Aucun antécédent renseigné."}</span>
@@ -577,7 +729,7 @@ const PatientDashboard = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-black text-slate-800 tracking-tight">Historique & Réservations</h2>
               <button onClick={() => setShowBooking(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:bg-blue-500 transition-all">
-                <Plus size={16}/> Nouveau RDV
+                <Plus size={16} /> Nouveau RDV
               </button>
             </div>
             <div className="grid gap-4">
@@ -585,7 +737,7 @@ const PatientDashboard = () => {
                 // ✅ Vérifier si c'est une VISIO confirmée
                 const isVisioConfirmed = a.type === 'VISIO' && a.statut === 'CONFIRME';
                 const canJoinVisio = isVisioConfirmed && a.visio_room_id;
-                
+
                 return (
                   <div key={a.id} className="bg-white p-6 rounded-2xl border border-slate-100 hover:shadow-md transition-all group">
                     <div className="flex justify-between items-start">
@@ -597,24 +749,23 @@ const PatientDashboard = () => {
                         <div>
                           <p className="font-bold text-slate-800 text-sm">{a.motif}</p>
                           <p className="text-xs font-bold text-slate-400 mt-1 flex items-center gap-2">
-                            <Clock size={12}/> {a.heure?.slice(0, 5)} 
-                            <span className="opacity-50">•</span> 
+                            <Clock size={12} /> {a.heure?.slice(0, 5)}
+                            <span className="opacity-50">•</span>
                             {a.type === 'VISIO' ? '📹 Visio' : '🏥 Présentiel'}
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-col items-end gap-2">
-                        <span className={`px-4 py-1.5 rounded border text-[9px] font-black uppercase tracking-widest ${
-                          a.statut === 'CONFIRME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 
-                          a.statut === 'TERMINE' ? 'bg-slate-50 text-slate-500 border-slate-200' :
-                          a.statut === 'ANNULE' ? 'bg-red-50 text-red-600 border-red-200' :
-                          a.statut === 'PROPOSE' ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                          'bg-amber-50 text-amber-600 border-amber-200'
-                        }`}>
+                        <span className={`px-4 py-1.5 rounded border text-[9px] font-black uppercase tracking-widest ${a.statut === 'CONFIRME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                            a.statut === 'TERMINE' ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                              a.statut === 'ANNULE' ? 'bg-red-50 text-red-600 border-red-200' :
+                                a.statut === 'PROPOSE' ? 'bg-purple-50 text-purple-600 border-purple-200' :
+                                  'bg-amber-50 text-amber-600 border-amber-200'
+                          }`}>
                           {a.statut === 'EN_ATTENTE' ? 'En attente' : a.statut === 'PROPOSE' ? 'Action requise' : a.statut}
                         </span>
-                        
+
                         {/* ✅ BOUTON REJOINDRE LA TELECONSULTATION */}
                         {canJoinVisio && (
                           <button
@@ -625,7 +776,7 @@ const PatientDashboard = () => {
                             Rejoindre la consultation
                           </button>
                         )}
-                        
+
                         {/* ✅ Avertissement pour VISIO en attente */}
                         {a.type === 'VISIO' && a.statut === 'EN_ATTENTE' && (
                           <span className="mt-2 text-amber-600 text-[8px] font-bold uppercase flex items-center gap-1">
@@ -650,10 +801,10 @@ const PatientDashboard = () => {
                   </div>
                 );
               })}
-              
+
               {appointments.length === 0 && (
                 <div className="text-center py-16 text-slate-400 bg-white rounded-3xl border border-slate-100 border-dashed">
-                  <Calendar size={40} className="mx-auto mb-4 opacity-20"/>
+                  <Calendar size={40} className="mx-auto mb-4 opacity-20" />
                   <p className="font-bold text-sm">Aucun rendez-vous planifié.</p>
                 </div>
               )}
@@ -676,7 +827,7 @@ const PatientDashboard = () => {
               </button>
             ) : (
               <span className="text-amber-600 font-black text-[10px] uppercase tracking-widest bg-amber-50 px-4 py-2.5 rounded-lg border border-amber-200 flex items-center gap-2">
-                <ShieldAlert size={14}/> En attente de création
+                <ShieldAlert size={14} /> En attente de création
               </span>
             )}
           </div>
@@ -690,7 +841,7 @@ const PatientDashboard = () => {
 
       {/* ✅ TOAST NOTIFICATION POUR TELECONSULTATION */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-right-5 duration-300">
+        <div className="fixed bottom-24 right-6 z-50 animate-in slide-in-from-right-5 duration-300">
           <div className="bg-indigo-600 text-white rounded-2xl shadow-2xl p-4 max-w-sm border border-indigo-400">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
@@ -699,7 +850,7 @@ const PatientDashboard = () => {
               <div className="flex-1">
                 <p className="font-bold text-sm">Téléconsultation prête</p>
                 <p className="text-xs text-indigo-100 mt-1">{toastMessage}</p>
-                <button 
+                <button
                   onClick={() => {
                     setShowToast(false);
                     setActiveTab('rdv');
@@ -716,20 +867,14 @@ const PatientDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* BOITE DE DISCUSSION FLOTTANTE */}
+      <PatientChatWidget />
     </div>
   );
 };
 
 // ====================== COMPOSANTS RÉUTILISABLES ======================
-
-const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
-  <div onClick={onClick} className={`flex items-center gap-3 px-5 py-4 rounded-xl cursor-pointer transition-all text-sm font-bold ${
-      active ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-  }`}>
-    <Icon size={18} className={active ? "text-blue-600" : ""} /> 
-    <span>{label}</span>
-  </div>
-);
 
 const InfoField = ({ label, value, isEditing, onChange, icon: Icon }) => {
   const safeValue = value || '';
@@ -740,7 +885,7 @@ const InfoField = ({ label, value, isEditing, onChange, icon: Icon }) => {
         <input type="text" value={safeValue} onChange={onChange} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" />
       ) : (
         <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-transparent">
-          {Icon && <Icon size={16} className="text-slate-400"/>}
+          {Icon && <Icon size={16} className="text-slate-400" />}
           <span className="font-bold text-slate-700 text-sm">{safeValue || "---"}</span>
         </div>
       )}
@@ -749,8 +894,8 @@ const InfoField = ({ label, value, isEditing, onChange, icon: Icon }) => {
 };
 
 const BookingModal = ({ onClose, onSubmit, setData, data, token }) => {
-  const[occupied, setOccupied] = useState([]);
-  const slots =["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
+  const [occupied, setOccupied] = useState([]);
+  const slots = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
 
   useEffect(() => {
     if (data.date) {
@@ -758,36 +903,34 @@ const BookingModal = ({ onClose, onSubmit, setData, data, token }) => {
         headers: { Authorization: `Bearer ${token}` }
       }).then(res => setOccupied(res.data));
     }
-  },[data.date, token]);
+  }, [data.date, token]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in">
       <div className="bg-white p-8 rounded-3xl max-w-md w-full relative shadow-2xl">
         <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-800 transition-colors">
-          <X size={20}/>
+          <X size={20} />
         </button>
         <h2 className="text-xl font-black text-slate-800 tracking-tight mb-8">Nouveau rendez-vous</h2>
-        
+
         <form onSubmit={onSubmit} className="space-y-5">
           {/* SÉLECTION DU TYPE DE RDV */}
           <div>
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Type de consultation</label>
             <div className="flex gap-3">
-              <button 
+              <button
                 type="button"
-                onClick={() => setData({...data, type: 'PRESENTIEL'})}
-                className={`flex-1 py-3 flex items-center justify-center gap-2 rounded-xl text-xs font-black border transition-all ${
-                  data.type === 'PRESENTIEL' ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-200'
-                }`}
+                onClick={() => setData({ ...data, type: 'PRESENTIEL' })}
+                className={`flex-1 py-3 flex items-center justify-center gap-2 rounded-xl text-xs font-black border transition-all ${data.type === 'PRESENTIEL' ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-200'
+                  }`}
               >
                 <User size={16} /> Au cabinet
               </button>
-              <button 
+              <button
                 type="button"
-                onClick={() => setData({...data, type: 'VISIO'})}
-                className={`flex-1 py-3 flex items-center justify-center gap-2 rounded-xl text-xs font-black border transition-all ${
-                  data.type === 'VISIO' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
-                }`}
+                onClick={() => setData({ ...data, type: 'VISIO' })}
+                className={`flex-1 py-3 flex items-center justify-center gap-2 rounded-xl text-xs font-black border transition-all ${data.type === 'VISIO' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
+                  }`}
               >
                 <Video size={16} /> En Visio
               </button>
@@ -796,9 +939,9 @@ const BookingModal = ({ onClose, onSubmit, setData, data, token }) => {
 
           <div>
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Date souhaitée</label>
-            <input type="date" required min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" onChange={e => setData({...data, date: e.target.value})} />
+            <input type="date" required min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" onChange={e => setData({ ...data, date: e.target.value })} />
           </div>
-          
+
           {data.date && (
             <div>
               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Créneau horaire</label>
@@ -806,12 +949,11 @@ const BookingModal = ({ onClose, onSubmit, setData, data, token }) => {
                 {slots.map(h => {
                   const isTaken = occupied.includes(h);
                   return (
-                    <button key={h} type="button" disabled={isTaken} onClick={() => setData({...data, heure: h})} 
-                      className={`py-3 rounded-lg text-xs font-black border transition-all ${
-                        data.heure === h ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 
-                        isTaken ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' : 
-                        'bg-white text-slate-600 border-slate-200 hover:border-blue-500'
-                      }`}
+                    <button key={h} type="button" disabled={isTaken} onClick={() => setData({ ...data, heure: h })}
+                      className={`py-3 rounded-lg text-xs font-black border transition-all ${data.heure === h ? 'bg-blue-600 text-white border-blue-600 shadow-md' :
+                          isTaken ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' :
+                            'bg-white text-slate-600 border-slate-200 hover:border-blue-500'
+                        }`}
                     >
                       {h}
                     </button>
@@ -820,12 +962,12 @@ const BookingModal = ({ onClose, onSubmit, setData, data, token }) => {
               </div>
             </div>
           )}
-          
+
           <div>
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Motif</label>
-            <textarea placeholder="Décrivez brièvement le motif..." required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 min-h-[100px] resize-none text-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium" onChange={e => setData({...data, motif: e.target.value})} />
+            <textarea placeholder="Décrivez brièvement le motif..." required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:border-blue-500 min-h-[100px] resize-none text-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium" onChange={e => setData({ ...data, motif: e.target.value })} />
           </div>
-          
+
           <button type="submit" disabled={!data.heure || !data.date} className="w-full bg-blue-600 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-blue-500/30 hover:bg-blue-500 transition-all disabled:opacity-30 disabled:hover:bg-blue-600 disabled:cursor-not-allowed mt-4">
             Confirmer la demande
           </button>

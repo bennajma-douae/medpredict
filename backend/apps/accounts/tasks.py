@@ -44,7 +44,68 @@ def send_appointment_notification_task(appointment_id, notification_type):
         except PatientDraft.DoesNotExist:
             pass
         
-        # Templates de notification
+        # Charger les configurations et templates depuis la base de données (100% dynamiques)
+        from apps.accounts.models import EmailTemplate, CabinetConfig
+        
+        try:
+            cab = CabinetConfig.objects.get(id=1)
+            cabinet_name = cab.nom
+        except Exception:
+            cabinet_name = "Cabinet Médical MedPredict"
+
+        type_visite = 'Visioconférence' if rdv.type == 'VISIO' else 'Au cabinet'
+        rdv_date_str = str(rdv.date)
+        rdv_heure_str = rdv.heure.strftime('%H:%M')
+        
+        db_template = None
+        try:
+            db_template = EmailTemplate.objects.filter(key=notification_type).first()
+        except Exception:
+            pass
+
+        if db_template:
+            # Remplacement des variables de fusion
+            sujet_rendered = db_template.sujet.replace('{nom_destinataire}', patient_name)\
+                                              .replace('{date}', rdv_date_str)\
+                                              .replace('{heure}', rdv_heure_str)\
+                                              .replace('{type_visite}', type_visite)\
+                                              .replace('{motif}', rdv.motif)\
+                                              .replace('{nom_cabinet}', cabinet_name)
+                                              
+            corps_rendered = db_template.corps.replace('{nom_destinataire}', patient_name)\
+                                              .replace('{date}', rdv_date_str)\
+                                              .replace('{heure}', rdv_heure_str)\
+                                              .replace('{type_visite}', type_visite)\
+                                              .replace('{motif}', rdv.motif)\
+                                              .replace('{nom_cabinet}', cabinet_name)\
+                                              .replace('\n', '<br>')
+                                              
+            # Envelopper dans une structure HTML moderne, élégante et premium
+            html_message = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
+                    <h2 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">{cabinet_name}</h2>
+                </div>
+                <div style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+                    {corps_rendered}
+                </div>
+                <div style="background-color: #f8fafc; padding: 16px; border-radius: 12px; font-size: 11px; color: #64748b; text-align: center;">
+                    Ceci est un message automatique de notification envoyé par MedPredict. Merci de ne pas y répondre.
+                </div>
+            </div>
+            """
+            
+            send_mail(
+                subject=sujet_rendered,
+                message='',  # Version texte vide, on utilise le HTML
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[patient_email],
+                fail_silently=False,
+                html_message=html_message
+            )
+            return f"Notification '{notification_type}' envoyée (via DB) à {patient_email}"
+
+        # Fallback si le template n'est pas présent en base de données :
         templates = {
             'confirmed': {
                 'subject': '✅ Votre rendez-vous est confirmé — MedPredict',
@@ -55,11 +116,11 @@ def send_appointment_notification_task(appointment_id, notification_type):
                   <div style="background: #f0fdfa; border-left: 4px solid #0d9488; padding: 16px; margin: 20px 0; border-radius: 8px;">
                     <p style="margin: 0;"><strong>📅 Date :</strong> {rdv.date}</p>
                     <p style="margin: 8px 0 0;"><strong>🕐 Heure :</strong> {rdv.heure.strftime('%H:%M')}</p>
-                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {'Visioconférence' if rdv.type == 'VISIO' else 'Au cabinet'}</p>
+                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {type_visite}</p>
                     <p style="margin: 8px 0 0;"><strong>📝 Motif :</strong> {rdv.motif}</p>
                   </div>
                   <p style="color: #6b7280; font-size: 14px;">Un rappel vous sera envoyé 24 heures avant votre consultation.</p>
-                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">MedPredict — Système de Gestion Médicale</p>
+                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">{cabinet_name} — Système de Gestion Médicale</p>
                 </div>
                 """
             },
@@ -68,12 +129,12 @@ def send_appointment_notification_task(appointment_id, notification_type):
                 'html': f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
                   <h2 style="color: #dc2626;">Bonjour {patient_name},</h2>
-                  <p>Votre rendez-vous du <strong>{rdv.date}</strong> à <strong>{rdv.heure.strftime('%H:%M')}</strong> a été <strong>annulé</strong>.</p>
+                  <p>Votre rendez-vous du <strong>{rdv.date}</strong> à <strong>{rdv_heure_str}</strong> a été <strong>annulé</strong>.</p>
                   <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; margin: 20px 0; border-radius: 8px;">
                     <p style="margin: 0;">Pour prendre un nouveau rendez-vous, connectez-vous à votre espace patient ou contactez notre secrétariat.</p>
                   </div>
                   <a href="http://localhost:5173/patient" style="display: inline-block; background-color: #0d9488; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 12px 0;">Accéder à mon espace</a>
-                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">MedPredict — Système de Gestion Médicale</p>
+                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">{cabinet_name} — Système de Gestion Médicale</p>
                 </div>
                 """
             },
@@ -85,12 +146,12 @@ def send_appointment_notification_task(appointment_id, notification_type):
                   <p>Votre rendez-vous a été <strong>déplacé</strong> à une nouvelle date.</p>
                   <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 20px 0; border-radius: 8px;">
                     <p style="margin: 0;"><strong>📅 Nouvelle date :</strong> {rdv.date}</p>
-                    <p style="margin: 8px 0 0;"><strong>🕐 Nouvelle heure :</strong> {rdv.heure.strftime('%H:%M')}</p>
-                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {'Visioconférence' if rdv.type == 'VISIO' else 'Au cabinet'}</p>
+                    <p style="margin: 8px 0 0;"><strong>🕐 Nouvelle heure :</strong> {rdv_heure_str}</p>
+                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {type_visite}</p>
                     <p style="margin: 8px 0 0;"><strong>📝 Motif :</strong> {rdv.motif}</p>
                   </div>
                   <p style="color: #6b7280; font-size: 14px;">Un nouveau rappel vous sera envoyé avant la consultation.</p>
-                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">MedPredict — Système de Gestion Médicale</p>
+                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">{cabinet_name} — Système de Gestion Médicale</p>
                 </div>
                 """
             },
@@ -102,11 +163,11 @@ def send_appointment_notification_task(appointment_id, notification_type):
                   <p>Ceci est un <strong>rappel automatique</strong> pour votre rendez-vous de demain.</p>
                   <div style="background: #f0fdfa; border-left: 4px solid #0d9488; padding: 16px; margin: 20px 0; border-radius: 8px;">
                     <p style="margin: 0;"><strong>📅 Date :</strong> {rdv.date}</p>
-                    <p style="margin: 8px 0 0;"><strong>🕐 Heure :</strong> {rdv.heure.strftime('%H:%M')}</p>
-                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {'Visioconférence' if rdv.type == 'VISIO' else 'Au cabinet'}</p>
+                    <p style="margin: 8px 0 0;"><strong>🕐 Heure :</strong> {rdv_heure_str}</p>
+                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {type_visite}</p>
                   </div>
                   <p style="color: #6b7280; font-size: 14px;">Merci d'être ponctuel. En cas d'empêchement, veuillez nous prévenir au plus tôt.</p>
-                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">MedPredict — Système de Gestion Médicale</p>
+                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">{cabinet_name} — Système de Gestion Médicale</p>
                 </div>
                 """
             },
@@ -117,72 +178,37 @@ def send_appointment_notification_task(appointment_id, notification_type):
                   <h2 style="color: #0d9488;">Bonjour {patient_name},</h2>
                   <p>Votre rendez-vous est dans <strong>2 heures</strong> !</p>
                   <div style="background: #f0fdfa; border-left: 4px solid #0d9488; padding: 16px; margin: 20px 0; border-radius: 8px;">
-                    <p style="margin: 0;"><strong>🕐 Heure :</strong> {rdv.heure.strftime('%H:%M')}</p>
-                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {'Visioconférence' if rdv.type == 'VISIO' else 'Au cabinet'}</p>
+                    <p style="margin: 0;"><strong>🕐 Heure :</strong> {rdv_heure_str}</p>
+                    <p style="margin: 8px 0 0;"><strong>📍 Type :</strong> {type_visite}</p>
                   </div>
                   <p style="color: #6b7280; font-size: 14px;">À très bientôt !</p>
-                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">MedPredict — Système de Gestion Médicale</p>
+                  <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">{cabinet_name} — Système de Gestion Médicale</p>
                 </div>
                 """
             },
-            # Dans send_appointment_notification_task, remplacez 'reminder_10min' par :
-
             'reminder_10min': {
                 'subject': '🔔 Rappel : Votre rendez-vous dans 10 minutes — MedPredict',
                 'html': f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
                     <div style="text-align: center; margin-bottom: 24px;">
-                        <h2 style="color: #0d9488; margin: 0;">MedPredict</h2>
+                        <h2 style="color: #0d9488; margin: 0;">{cabinet_name}</h2>
                         <p style="color: #64748b; margin: 4px 0 0;">Rappel de consultation</p>
                     </div>
-                    
                     <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; border-radius: 12px; margin: 16px 0;">
                         <p style="margin: 0; font-size: 14px; color: #dc2626; font-weight: bold;">
                             ⏰ Votre rendez-vous commence dans 10 minutes !
                         </p>
                     </div>
-                    
                     <h3 style="color: #1e293b;">Bonjour {patient_name},</h3>
-                    
                     <div style="background-color: #f8fafc; padding: 16px; border-radius: 12px; margin: 16px 0;">
                         <p style="margin: 0;"><strong>📅 Date :</strong> {rdv.date}</p>
-                        <p style="margin: 8px 0 0;"><strong>🕐 Heure :</strong> {rdv.heure.strftime('%H:%M')}</p>
+                        <p style="margin: 8px 0 0;"><strong>🕐 Heure :</strong> {rdv_heure_str}</p>
                         <p style="margin: 8px 0 0;"><strong>📝 Motif :</strong> {rdv.motif}</p>
                     </div>
-                    
-                    {'''<div style="background-color: #f0fdfa; padding: 16px; border-radius: 12px; margin: 16px 0; border: 1px solid #0d9488;">
-                        <p style="margin: 0; color: #0d9488; font-weight: bold;">📹 Téléconsultation</p>
-                        <p style="margin: 8px 0;">Vous allez recevoir votre lien de connexion par email dans un instant.</p>
-                        <p style="margin: 8px 0 0; font-size: 12px;">👉 Assurez-vous d'avoir :</p>
-                        <ul style="margin: 8px 0 0; font-size: 12px; color: #64748b;">
-                            <li>Une connexion internet stable</li>
-                            <li>Votre microphone et caméra fonctionnels</li>
-                            <li>Un navigateur récent (Chrome, Edge, Firefox)</li>
-                        </ul>
-                    </div>''' if rdv.type == 'VISIO' else '''
-                    <div style="background-color: #fef3c7; padding: 16px; border-radius: 12px; margin: 16px 0; border: 1px solid #f59e0b;">
-                        <p style="margin: 0; color: #d97706; font-weight: bold;">🏥 Consultation au cabinet</p>
-                        <p style="margin: 8px 0;">Merci de vous présenter au cabinet <strong>dans les plus brefs délais</strong>.</p>
-                        <p style="margin: 8px 0 0; font-size: 12px;">📍 N'oubliez pas d'apporter :</p>
-                        <ul style="margin: 8px 0 0; font-size: 12px; color: #64748b;">
-                            <li>Votre carte d'identité (CIN)</li>
-                            <li>Votre carte de mutuelle</li>
-                            <li>Vos derniers examens ou analyses</li>
-                        </ul>
-                    </div>
-                    '''}
-                    
-                    <div style="background-color: #fef2f2; padding: 12px; border-radius: 8px; margin: 16px 0;">
-                        <p style="margin: 0; font-size: 12px; color: #92400e;">
-                            ⚠️ En cas de retard, veuillez prévenir le secrétariat au <strong>+212 5 22 12 34 56</strong>
-                        </p>
-                    </div>
-                    
                     <hr style="margin: 24px 0; border-color: #e2e8f0;">
-                    
                     <p style="color: #64748b; font-size: 11px; text-align: center;">
                         Ceci est un message automatique, merci de ne pas y répondre.<br>
-                        MedPredict — Soins médicaux intelligents
+                        {cabinet_name} — Soins médicaux intelligents
                     </p>
                 </div>
                 """

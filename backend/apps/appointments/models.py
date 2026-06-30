@@ -27,3 +27,4 @@ class RendezVous(models.Model):
     visio_room_id = models.CharField(max_length=100, blank=True, null=True)
     visio_access_code = models.CharField(max_length=10, blank=True, null=True)
     visio_code_expires_at = models.DateTimeField(blank=True, null=True)  # Expiration
+    rappel_envoye = models.BooleanField(default=False)

@@ -29,6 +29,11 @@ class RendezVousSerializer(serializers.ModelSerializer):
             'patient_date_naissance', 'patient_groupe_sanguin', 'patient_allergies',
             'visio_room_id', 'visio_access_code', 'visio_code_expires_at',  # ✅ Ajoutés
         ]
+        extra_kwargs = {
+            'medecin': {'required': False, 'allow_null': True},
+            'user': {'required': False, 'allow_null': True},
+            'patient': {'required': False, 'allow_null': True},
+        }
 
     def get_patient_id(self, obj):
         return obj.patient.id if obj.patient else None

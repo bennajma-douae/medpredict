@@ -90,6 +90,13 @@ class PatientViewSet(viewsets.ModelViewSet):
         """Permet au patient connecté de modifier ses infos (Patient ou PatientDraft)."""
         user = request.user
         
+        email = request.data.get('email')
+        if email and email != user.email:
+            if User.objects.filter(email=email).exclude(id=user.id).exists():
+                return Response({'detail': 'Cet email est déjà utilisé par un autre utilisateur.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.email = email
+            user.save()
+        
         # 1. Chercher d'abord le PatientDraft (le plus courant)
         try:
             draft = PatientDraft.objects.get(user=user)
@@ -193,365 +200,207 @@ class PatientViewSet(viewsets.ModelViewSet):
             'nb_rdv': rdvs.count(),
         })
 
+    @action(detail=True, methods=['get'], url_path='dossier')
+    def detail_dossier(self, request, pk=None):
+        """Retourne le dossier médical complet d'un patient spécifique (réservé au médecin)."""
+        if request.user.role != 'MEDECIN':
+            return Response({'detail': 'Accès refusé. Seul le médecin peut consulter le dossier médical.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        patient = self.get_object()
+        
+        from apps.consultations.models import Consultation
+        from apps.consultations.serializers import ConsultationSerializer
+        from apps.appointments.models import RendezVous
+
+        rdvs = RendezVous.objects.filter(patient=patient).order_by('-date')
+        rdv_ids = rdvs.values_list('id', flat=True)
+        consultations = Consultation.objects.filter(rendezvous__in=rdv_ids).select_related('rendezvous').order_by('-rendezvous__date')
+
+        patient_data = PatientSerializer(patient).data
+        consultations_data = ConsultationSerializer(consultations, many=True).data
+
+        return Response({
+            'has_dossier': True,
+            'patient': patient_data,
+            'consultations': consultations_data,
+            'nb_consultations': consultations.count(),
+            'nb_rdv': rdvs.count(),
+        })
+
     @action(detail=False, methods=['get'], url_path='me/download-dossier')
     def download_pdf(self, request):
-        """Génère et télécharge le dossier médical en PDF."""
+        import traceback
+        from io import BytesIO
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A4
+        from django.utils import timezone
+
         try:
             patient = Patient.objects.get(user=request.user)
             
-            # Récupération des consultations
+            # Charger les configurations du cabinet (100% dynamique)
+            from apps.accounts.models import CabinetConfig
+            try:
+                cab = CabinetConfig.objects.get(id=1)
+                cabinet_name = cab.nom
+                pdf_footer = cab.pied_page
+            except Exception:
+                cabinet_name = "MedPredict"
+                pdf_footer = "Document confidentiel genere par le systeme intelligent MedPredict."
+        except Patient.DoesNotExist:
+            return Response({'error': 'Profil patient non trouve'}, status=404)
+
+        try:
             from apps.consultations.models import Consultation
             from apps.appointments.models import RendezVous
             from apps.prescriptions.models import Ordonnance, Medicament
-            import qrcode
-            from PIL import Image
-            import tempfile
-            from reportlab.lib.utils import ImageReader
-            from reportlab.lib.colors import HexColor
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib import colors
-            from reportlab.lib.units import mm
-            
-            rdv_ids = RendezVous.objects.filter(patient=patient).values_list('id', flat=True)
-            consultations = Consultation.objects.filter(rendezvous__in=rdv_ids).order_by('-date_consultation')
-            
-            # Récupération des ordonnances par consultation
+
+            rdv_ids = list(RendezVous.objects.filter(patient=patient).values_list('id', flat=True))
+            consultations = list(Consultation.objects.filter(rendezvous__in=rdv_ids).order_by('-date_consultation'))
+
             ordonnances_data = {}
             for consultation in consultations:
                 try:
                     ordonnance = Ordonnance.objects.get(consultation=consultation)
-                    medicaments = Medicament.objects.filter(ordonnance=ordonnance)
-                    ordonnances_data[consultation.id] = {
-                        'ordonnance': ordonnance,
-                        'medicaments': medicaments
-                    }
+                    medicaments = list(Medicament.objects.filter(ordonnance=ordonnance))
+                    ordonnances_data[consultation.id] = {'ordonnance': ordonnance, 'medicaments': medicaments}
                 except Ordonnance.DoesNotExist:
                     ordonnances_data[consultation.id] = None
-                    
-        except Patient.DoesNotExist:
-            return Response({'error': 'Profil non trouvé'}, status=404)
 
-        # Création du buffer et du document
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, 
-                               rightMargin=50, leftMargin=50,
-                               topMargin=50, bottomMargin=50)
-        
-        # Styles personnalisés
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            textColor=HexColor('#1e40af'),  # Bleu foncé
-            alignment=1,  # Centré
-            spaceAfter=30,
-            fontName='Helvetica-Bold'
-        )
-        
-        header_style = ParagraphStyle(
-            'HeaderStyle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=HexColor('#1e3a8a'),
-            spaceAfter=12,
-            spaceBefore=20,
-            fontName='Helvetica-Bold'
-        )
-        
-        subheader_style = ParagraphStyle(
-            'SubheaderStyle',
-            parent=styles['Heading3'],
-            fontSize=12,
-            textColor=HexColor('#374151'),
-            spaceAfter=8,
-            spaceBefore=10,
-            fontName='Helvetica-Bold'
-        )
-        
-        normal_style = ParagraphStyle(
-            'NormalStyle',
-            parent=styles['Normal'],
-            fontSize=10,
-            textColor=HexColor('#1f2937'),
-            leading=14,
-            fontName='Helvetica'
-        )
-        
-        info_style = ParagraphStyle(
-            'InfoStyle',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=HexColor('#111827'),
-            leading=16,
-            fontName='Helvetica-Bold'
-        )
-        
-        # Liste des éléments du document
-        story = []
-        
-        # ==================== 1. EN-TÊTE AVEC LOGO ====================
-        from reportlab.platypus import Table, TableStyle
-        
-        # Essayer de charger un logo (si le fichier existe)
-        logo_paths = [
-            '/app/static/logo.png',
-            '/app/media/logo.png',
-            'static/logo.png',
-            'media/logo.png'
-        ]
-        
-        logo_elem = None
-        import os
-        for path in logo_paths:
-            if os.path.exists(path):
-                try:
-                    from reportlab.lib.utils import ImageReader
-                    img = ImageReader(path)
-                    logo_elem = img
-                    break
-                except:
-                    pass
-        
-        if logo_elem:
-            from reportlab.platypus import Image
-            logo = Image(logo_elem, width=60, height=60)
-            header_data = [
-                [logo, Paragraph("<b><font color='#1e40af' size=24>DOSSIER MÉDICAL NUMÉRIQUE</font></b>", title_style)]
-            ]
-            header_table = Table(header_data, colWidths=[80, 420])
-            header_table.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-            ]))
-            story.append(header_table)
-        else:
-            story.append(Paragraph("<b><font color='#1e40af' size=24>DOSSIER MÉDICAL NUMÉRIQUE</font></b>", title_style))
-        
-        story.append(Spacer(1, 20))
-        
-        # ==================== 2. LIGNE DE SÉPARATION ====================
-        from reportlab.platypus import HRFlowable
-        story.append(HRFlowable(width="100%", thickness=1, color=HexColor('#1e40af'), spaceAfter=15))
-        
-        # ==================== 3. IDENTITÉ DU PATIENT (Tableau) ====================
-        story.append(Paragraph("IDENTITÉ DU PATIENT", header_style))
-        
-        # Tableau des informations patient
-        patient_data_table = [
-            ["Nom complet:", f"{patient.nom_complet}"],
-            ["CIN:", patient.cin or "N/A"],
-            ["Date de naissance:", patient.dateNaissance.strftime('%d/%m/%Y') if patient.dateNaissance else "N/A"],
-            ["Âge:", f"{self.calculer_age(patient.dateNaissance)} ans" if patient.dateNaissance else "N/A"],
-            ["Genre:", patient.get_genre_display() if hasattr(patient, 'get_genre_display') else (patient.genre or "N/A")],
-            ["Téléphone:", patient.telephone or "N/A"],
-            ["Groupe sanguin:", patient.groupeSanguin or "N/A"],
-            ["Adresse:", patient.adresse or "N/A"],
-        ]
-        
-        patient_table = Table(patient_data_table, colWidths=[120, 400])
-        patient_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), HexColor('#f3f4f6')),
-            ('TEXTCOLOR', (0, 0), (0, -1), HexColor('#1e40af')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#e5e7eb')),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        story.append(patient_table)
-        story.append(Spacer(1, 15))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor('#d1d5db'), spaceAfter=10))
-        
-        # ==================== 4. INFORMATIONS MÉDICALES DE BASE ====================
-        story.append(Paragraph("INFORMATIONS MÉDICALES", header_style))
-        
-        medical_data = [
-            ["Allergies:", patient.allergies or "Aucune allergie connue"],
-            ["Antécédents:", patient.antecedents or "Aucun antécédent connu"],
-        ]
-        
-        medical_table = Table(medical_data, colWidths=[120, 400])
-        medical_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), HexColor('#fef3c7')),
-            ('TEXTCOLOR', (0, 0), (0, -1), HexColor('#b45309')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ]))
-        story.append(medical_table)
-        story.append(Spacer(1, 20))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor('#d1d5db'), spaceAfter=10))
-        
-        # ==================== 5. QR CODE POUR SUIVI PATIENT ====================
-        story.append(Paragraph("CODE DE SUIVI", header_style))
-        
-        # Génération du QR Code
-        try:
-            # Données à encoder dans le QR code
-            qr_data = f"Patient ID: {patient.id}\nNom: {patient.nom_complet}\nCIN: {patient.cin or 'N/A'}"
-            
-            qr = qrcode.QRCode(version=1, box_size=10, border=1)
-            qr.add_data(qr_data)
-            qr.make(fit=True)
-            qr_img = qr.make_image(fill_color="#1e40af", back_color="white")
-            
-            # Sauvegarde temporaire du QR code
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmpfile:
-                qr_img.save(tmpfile.name)
-                tmpfile_path = tmpfile.name
-            
-            from reportlab.lib.utils import ImageReader
-            qr_reader = ImageReader(tmpfile_path)
-            
-            from reportlab.platypus import Image
-            qr_elem = Image(qr_reader, width=80, height=80)
-            
-            # Tableau pour QR code + texte explicatif
-            qr_table_data = [
-                [qr_elem, Paragraph("Scannez ce code QR pour accéder rapidement à votre dossier médical sur l'application MedPredict", normal_style)]
-            ]
-            qr_table = Table(qr_table_data, colWidths=[100, 400])
-            qr_table.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('TOPPADDING', (0, 0), (-1, -1), 5),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ]))
-            story.append(qr_table)
-            
-            # Nettoyage
-            os.unlink(tmpfile_path)
-            
         except Exception as e:
-            story.append(Paragraph("QR Code non disponible", normal_style))
-            print(f"Erreur génération QR code: {e}")
-        
-        story.append(Spacer(1, 20))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor('#d1d5db'), spaceAfter=10))
-        
-        # ==================== 6. HISTORIQUE DES CONSULTATIONS ====================
-        story.append(Paragraph("HISTORIQUE DES CONSULTATIONS", header_style))
-        
-        if consultations.exists():
-            for consultation in consultations:
-                date_str = consultation.date_consultation.strftime('%d/%m/%Y à %H:%M')
-                
-                # En-tête de consultation (style carte)
-                story.append(Paragraph(f"▸ Consultation du {date_str}", subheader_style))
-                
-                # Détails de la consultation en tableau
-                consult_details = [
-                    ["Symptômes:", consultation.symptomes[:200] + "..." if len(consultation.symptomes) > 200 else consultation.symptomes],
-                    ["Diagnostic:", consultation.diagnostic or "Non spécifié"],
-                    ["Notes:", consultation.notes or "Aucune note"],
-                ]
-                
-                consult_table = Table(consult_details, colWidths=[80, 410])
-                consult_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (0, -1), HexColor('#e0f2fe')),
-                    ('TEXTCOLOR', (0, 0), (0, -1), HexColor('#0369a1')),
-                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 9),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 4),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ]))
-                story.append(consult_table)
-                
-                # ==================== 7. ORDONNANCES ====================
-                if ordonnances_data.get(consultation.id):
-                    ord_data = ordonnances_data[consultation.id]
-                    story.append(Paragraph("   └ Ordonnance prescrite :", normal_style))
-                    
-                    # Tableau des médicaments
-                    med_data = [["Médicament", "Dosage", "Posologie"]]
-                    for med in ord_data['medicaments']:
-                        med_data.append([
-                            med.nom,
-                            med.dosage,
-                            med.posologie[:50] + "..." if len(med.posologie) > 50 else med.posologie
-                        ])
-                    
-                    med_table = Table(med_data, colWidths=[150, 100, 240])
-                    med_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#065f46')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, -1), 8),
-                        ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#d1d5db')),
-                        ('TOPPADDING', (0, 0), (-1, -1), 5),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                    ]))
-                    story.append(med_table)
-                else:
-                    story.append(Paragraph("   └ Aucune ordonnance prescrite", normal_style))
-                
-                story.append(Spacer(1, 10))
-        else:
-            story.append(Paragraph("Aucune consultation enregistrée", normal_style))
-        
-        # ==================== 8. STATISTIQUES RÉCAPITULATIVES ====================
-        story.append(Spacer(1, 20))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor('#d1d5db'), spaceAfter=10))
-        story.append(Paragraph("RÉCAPITULATIF", header_style))
-        
-        total_consultations = consultations.count()
-        total_rdv = RendezVous.objects.filter(patient=patient).count()
-        total_ordonnances = sum(1 for v in ordonnances_data.values() if v is not None)
-        
-        recap_data = [
-            ["Nombre total de consultations:", str(total_consultations)],
-            ["Nombre total de rendez-vous:", str(total_rdv)],
-            ["Nombre total d'ordonnances:", str(total_ordonnances)],
-            ["Date de création du dossier:", patient.created_at.strftime('%d/%m/%Y') if patient.created_at else "N/A"],
-        ]
-        
-        recap_table = Table(recap_data, colWidths=[200, 300])
-        recap_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), HexColor('#f0fdf4')),
-            ('TEXTCOLOR', (0, 0), (0, -1), HexColor('#166534')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ]))
-        story.append(recap_table)
-        
-        # ==================== 9. PIED DE PAGE ====================
-        story.append(Spacer(1, 30))
-        story.append(HRFlowable(width="100%", thickness=1, color=HexColor('#1e40af'), spaceAfter=10))
-        
-        footer_text = Paragraph(
-            "<font size=8 color='#6b7280'><i>Document généré par MedPredict - Système de Gestion Médicale Intelligente<br/>"
-            "Date de génération: {} - Ce document est confidentiel et protégé</i></font>".format(
-                timezone.now().strftime('%d/%m/%Y à %H:%M:%S')
-            ),
-            normal_style
-        )
-        story.append(footer_text)
-        
-        # ==================== GESTION DES SAUTS DE PAGE ====================
-        # La gestion des sauts de page est automatique avec SimpleDocTemplate
-        # On construit le document
+            traceback.print_exc()
+            return Response({'error': 'Erreur donnees: ' + str(e)}, status=500)
+
         try:
-            doc.build(story)
+            buffer = BytesIO()
+            p = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+
+            p.setFillColorRGB(0.118, 0.251, 0.686)
+            p.rect(0, height - 80, width, 80, fill=1, stroke=0)
+            p.setFillColorRGB(1, 1, 1)
+            p.setFont("Helvetica-Bold", 20)
+            p.drawCentredString(width / 2, height - 35, "DOSSIER MEDICAL NUMERIQUE")
+            p.setFont("Helvetica", 10)
+            p.drawCentredString(width / 2, height - 55, f"{cabinet_name} - Systeme de Gestion Medicale")
+
+            y = height - 100
+
+            def section_title(title, r, g, b):
+                nonlocal y
+                p.setFillColorRGB(r, g, b)
+                p.setFont("Helvetica-Bold", 13)
+                p.drawString(50, y, title)
+                y -= 8
+                p.setStrokeColorRGB(r, g, b)
+                p.line(50, y, width - 50, y)
+                y -= 18
+
+            def draw_row(label, value):
+                nonlocal y
+                p.setFillColorRGB(0.243, 0.302, 0.388)
+                p.setFont("Helvetica-Bold", 9)
+                p.drawString(55, y, label)
+                p.setFillColorRGB(0.122, 0.161, 0.22)
+                p.setFont("Helvetica", 9)
+                val = str(value)[:90] if value else "N/A"
+                p.drawString(200, y, val)
+                y -= 16
+
+            section_title("IDENTITE DU PATIENT", 0.118, 0.251, 0.686)
+            dob = patient.dateNaissance.strftime('%d/%m/%Y') if patient.dateNaissance else None
+            age_val = self.calculer_age(patient.dateNaissance) if patient.dateNaissance else None
+            dob_str = (str(dob) + ' (Age: ' + str(age_val) + ' ans)') if dob else None
+            genre_label = 'Masculin' if patient.genre == 'M' else ('Feminin' if patient.genre == 'F' else str(patient.genre or ''))
+            draw_row("Nom complet :", patient.nom_complet)
+            draw_row("CIN :", patient.cin)
+            draw_row("Date de naissance :", dob_str)
+            draw_row("Genre :", genre_label)
+            draw_row("Telephone :", patient.telephone)
+            draw_row("Groupe sanguin :", patient.groupeSanguin)
+            draw_row("Adresse :", patient.adresse)
+            y -= 10
+
+            section_title("INFORMATIONS MEDICALES", 0.702, 0.345, 0.035)
+            draw_row("Allergies :", patient.allergies or "Aucune allergie connue")
+            ant = str(patient.antecedents or "Aucun antecedent connu")
+            draw_row("Antecedents :", ant[:80] + ("..." if len(ant) > 80 else ""))
+            y -= 10
+
+            section_title("HISTORIQUE DES CONSULTATIONS", 0.118, 0.251, 0.686)
+
+            if consultations:
+                for c in consultations:
+                    if y < 120:
+                        p.showPage()
+                        y = height - 50
+                    date_str = c.date_consultation.strftime('%d/%m/%Y a %H:%M')
+                    p.setFillColorRGB(0.02, 0.38, 0.63)
+                    p.setFont("Helvetica-Bold", 10)
+                    p.drawString(55, y, "> Consultation du " + date_str)
+                    y -= 15
+                    symp = str(c.symptomes or '')[:100] + ("..." if len(str(c.symptomes or '')) > 100 else "")
+                    draw_row("Symptomes :", symp)
+                    diag = str(c.diagnostic or 'Non specifie')[:100]
+                    draw_row("Diagnostic :", diag)
+                    if c.notes:
+                        draw_row("Notes :", str(c.notes)[:80])
+                    ord_data = ordonnances_data.get(c.id)
+                    if ord_data and ord_data['medicaments']:
+                        p.setFillColorRGB(0.02, 0.37, 0.27)
+                        p.setFont("Helvetica-Bold", 9)
+                        p.drawString(60, y, "Ordonnance :")
+                        y -= 13
+                        for med in ord_data['medicaments']:
+                            if y < 80:
+                                p.showPage()
+                                y = height - 50
+                            p.setFillColorRGB(0.122, 0.161, 0.22)
+                            p.setFont("Helvetica", 8)
+                            posologie = str(med.posologie or '')[:60]
+                            p.drawString(75, y, "- " + str(med.nom) + "  |  " + str(med.dosage) + "  |  " + posologie)
+                            y -= 12
+                    else:
+                        p.setFillColorRGB(0.5, 0.5, 0.5)
+                        p.setFont("Helvetica-Oblique", 8)
+                        p.drawString(65, y, "Aucune ordonnance pour cette consultation")
+                        y -= 12
+                    p.setStrokeColorRGB(0.82, 0.84, 0.87)
+                    p.line(50, y, width - 50, y)
+                    y -= 12
+            else:
+                p.setFillColorRGB(0.5, 0.5, 0.5)
+                p.setFont("Helvetica-Oblique", 10)
+                p.drawString(55, y, "Aucune consultation enregistree pour ce patient.")
+                y -= 20
+
+            if y < 100:
+                p.showPage()
+                y = height - 50
+            y -= 10
+            section_title("RECAPITULATIF", 0.09, 0.40, 0.20)
+            draw_row("Nombre total de RDV :", str(len(rdv_ids)))
+            draw_row("Nombre total de consultations :", str(len(consultations)))
+            draw_row("Ordonnances prescrites :", str(sum(1 for v in ordonnances_data.values() if v is not None)))
+
+            p.setStrokeColorRGB(0.118, 0.251, 0.686)
+            p.line(50, 45, width - 50, 45)
+            p.setFillColorRGB(0.42, 0.47, 0.53)
+            p.setFont("Helvetica", 7)
+            p.drawCentredString(width / 2, 32, f"{pdf_footer} - Genere le " + timezone.now().strftime('%d/%m/%Y a %H:%M:%S'))
+
+            p.save()
+            buffer.seek(0)
+
+            nom_safe = str(patient.nom or 'Patient').replace(' ', '_')
+            prenom_safe = str(patient.prenom or '').replace(' ', '_')
+            filename = "Dossier_Medical_" + nom_safe + "_" + prenom_safe + "_" + timezone.now().strftime('%Y%m%d') + ".pdf"
+            return HttpResponse(buffer.getvalue(), content_type='application/pdf',
+                                headers={'Content-Disposition': 'attachment; filename="' + filename + '"'})
+
         except Exception as e:
-            # Fallback en cas d'erreur avec SimpleDocTemplate
-            print(f"Erreur avec SimpleDocTemplate: {e}")
-            # Reconstruction avec la méthode canvas originale (plus simple)
-            return self._generate_simple_pdf(patient, consultations, ordonnances_data, buffer)
-        
-        buffer.seek(0)
-        filename = f"Dossier_Medical_{patient.nom}_{patient.prenom}_{timezone.now().strftime('%Y%m%d')}.pdf"
-        return HttpResponse(
-            buffer, 
-            content_type='application/pdf', 
-            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
-        )
+            traceback.print_exc()
+            return Response({'error': 'Erreur PDF: ' + str(e)}, status=500)
 
     def calculer_age(self, date_naissance):
         """Calcule l'âge à partir de la date de naissance."""
@@ -605,20 +454,18 @@ class PatientViewSet(viewsets.ModelViewSet):
             
             qr_img = qr.make_image(fill_color="#1e3a8a", back_color="white")
             
-            # Sauvegarde temporaire
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmpfile:
-                qr_img.save(tmpfile.name, 'PNG')
-                tmpfile_path = tmpfile.name
+            # Sauvegarde en mémoire
+            qr_buffer = BytesIO()
+            qr_img.save(qr_buffer, format='PNG')
+            qr_buffer.seek(0)
             
-            # Vérifier que le fichier existe et a une taille valide
-            if os.path.exists(tmpfile_path) and os.path.getsize(tmpfile_path) > 0:
-                p.drawImage(tmpfile_path, width - 90, height - 100, width=60, height=60)
-                p.setFont("Helvetica", 6)
-                p.drawString(width - 85, height - 115, "Scanner le QR")
-                qr_placed = True
+            from reportlab.lib.utils import ImageReader
+            qr_reader = ImageReader(qr_buffer)
             
-            # Nettoyage
-            os.unlink(tmpfile_path)
+            p.drawImage(qr_reader, width - 90, height - 100, width=60, height=60)
+            p.setFont("Helvetica", 6)
+            p.drawString(width - 85, height - 115, "Scanner le QR")
+            qr_placed = True
             
         except Exception as e:
             print(f"Erreur QR Code: {e}")

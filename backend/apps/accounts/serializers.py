@@ -18,10 +18,11 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
             'password',
             'patient_id',
-            'email_verified'          # ← Champ ajouté pour la vérification email
+            'email_verified',
+            'photo_base64'
         ]
         extra_kwargs = {
-            'password': {'write_only': True, 'required': True},
+            'password': {'write_only': True, 'required': False},
         }
 
     def get_patient_id(self, obj):
@@ -55,3 +56,17 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
 
         return user
+
+
+from .models import CabinetConfig, EmailTemplate
+
+class CabinetConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CabinetConfig
+        fields = '__all__'
+
+
+class EmailTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmailTemplate
+        fields = '__all__'

@@ -1,0 +1,319 @@
+{
+  "Fungal infection": {
+    "medications": [
+      {"name": "Fluconazole", "dosage": "150mg", "frequency": "1x/semaine", "duration": "4 semaines"},
+      {"name": "Clotrimazole crème 1%", "dosage": "Application locale", "frequency": "2x/jour", "duration": "3 semaines"}
+    ],
+    "advice": "Maintenir la zone affectée propre et sèche. Éviter les vêtements synthétiques serrés.",
+    "follow_up_days": 21
+  },
+  "Allergy": {
+    "medications": [
+      {"name": "Cétirizine", "dosage": "10mg", "frequency": "1x/jour", "duration": "Selon symptômes"},
+      {"name": "Loratadine", "dosage": "10mg", "frequency": "1x/jour", "duration": "Selon symptômes"}
+    ],
+    "advice": "Identifier et éviter l'allergène déclencheur. Consulter si les symptômes s'aggravent.",
+    "follow_up_days": 14
+  },
+  "GERD": {
+    "medications": [
+      {"name": "Oméprazole", "dosage": "20mg", "frequency": "1x/jour avant repas", "duration": "8 semaines"},
+      {"name": "Gaviscon", "dosage": "10ml", "frequency": "Après chaque repas et au coucher", "duration": "Selon besoin"}
+    ],
+    "advice": "Éviter repas tardifs, alcool, café, aliments épicés. Surélever la tête du lit.",
+    "follow_up_days": 30
+  },
+  "Chronic cholestasis": {
+    "medications": [
+      {"name": "Acide ursodésoxycholique", "dosage": "13-15 mg/kg/jour", "frequency": "En 2-3 prises", "duration": "Long terme"}
+    ],
+    "advice": "Suivi hépatologique régulier. Bilan hépatique tous les 3 mois.",
+    "follow_up_days": 90
+  },
+  "Drug Reaction": {
+    "medications": [
+      {"name": "Arrêt du médicament incriminé", "dosage": "-", "frequency": "-", "duration": "-"},
+      {"name": "Antihistaminique si prurit", "dosage": "Selon prescription", "frequency": "Selon prescription", "duration": "Jusqu'à résolution"}
+    ],
+    "advice": "Documenter l'allergie médicamenteuse dans le dossier patient. Éviction définitive.",
+    "follow_up_days": 7
+  },
+  "Peptic ulcer diseae": {
+    "medications": [
+      {"name": "Oméprazole", "dosage": "20mg", "frequency": "2x/jour", "duration": "4-8 semaines"},
+      {"name": "Amoxicilline", "dosage": "1g", "frequency": "2x/jour", "duration": "7 jours"},
+      {"name": "Clarithromycine", "dosage": "500mg", "frequency": "2x/jour", "duration": "7 jours"}
+    ],
+    "advice": "Triple thérapie si H. pylori positif. Éviter AINS et aspirine.",
+    "follow_up_days": 30
+  },
+  "AIDS": {
+    "medications": [
+      {"name": "Traitement ARV — référer infectiologue", "dosage": "Selon protocole", "frequency": "Selon protocole", "duration": "À vie"}
+    ],
+    "advice": "Orientation urgente vers infectiologue. Bilan CD4, charge virale. Soutien psychologique.",
+    "follow_up_days": 14
+  },
+  "Diabetes": {
+    "medications": [
+      {"name": "Metformine", "dosage": "500mg", "frequency": "2x/jour avec repas", "duration": "Long terme"},
+      {"name": "Contrôle glycémique", "dosage": "HbA1c cible < 7%", "frequency": "Tous les 3 mois", "duration": "Continu"}
+    ],
+    "advice": "Régime diabétique, activité physique régulière. Auto-surveillance glycémique.",
+    "follow_up_days": 30
+  },
+  "Gastroenteritis": {
+    "medications": [
+      {"name": "Réhydratation orale (SRO)", "dosage": "250ml", "frequency": "Après chaque selle liquide", "duration": "Jusqu'à résolution"},
+      {"name": "Lopéramide", "dosage": "2mg", "frequency": "Après chaque selle (max 8mg/j)", "duration": "48h max"}
+    ],
+    "advice": "Diète légère, hydratation abondante. Consulter si fièvre > 38.5°C ou sang dans selles.",
+    "follow_up_days": 5
+  },
+  "Bronchial Asthma": {
+    "medications": [
+      {"name": "Salbutamol spray", "dosage": "100mcg/bouffée", "frequency": "2 bouffées si crise", "duration": "Selon besoin"},
+      {"name": "Béclométasone spray", "dosage": "100mcg/bouffée", "frequency": "2 bouffées 2x/jour", "duration": "Long terme"}
+    ],
+    "advice": "Éviter les déclencheurs (acariens, tabac, pollen). Technique inhalatoire vérifiée.",
+    "follow_up_days": 30
+  },
+  "Hypertension": {
+    "medications": [
+      {"name": "Amlodipine", "dosage": "5mg", "frequency": "1x/jour", "duration": "Long terme"},
+      {"name": "Perindopril", "dosage": "4mg", "frequency": "1x/jour", "duration": "Long terme"}
+    ],
+    "advice": "Régime hyposodé, activité physique. Automesure tensionnelle. Arrêt tabac.",
+    "follow_up_days": 30
+  },
+  "Migraine": {
+    "medications": [
+      {"name": "Sumatriptan", "dosage": "50mg", "frequency": "Au début de la crise (max 2/jour)", "duration": "Selon crise"},
+      {"name": "Ibuprofène", "dosage": "400mg", "frequency": "Si crise légère à modérée", "duration": "Selon crise"}
+    ],
+    "advice": "Tenir un journal des crises. Identifier les déclencheurs. Repos dans le calme et l'obscurité.",
+    "follow_up_days": 45
+  },
+  "Cervical spondylosis": {
+    "medications": [
+      {"name": "Ibuprofène", "dosage": "400mg", "frequency": "3x/jour avec repas", "duration": "10 jours"},
+      {"name": "Myorelaxant (Thiocolchicoside)", "dosage": "4mg", "frequency": "2x/jour", "duration": "7 jours"}
+    ],
+    "advice": "Kinésithérapie cervicale recommandée. Correction de la posture. Éviter immobilisation prolongée.",
+    "follow_up_days": 21
+  },
+  "Paralysis (brain hemorrhage)": {
+    "medications": [
+      {"name": "Orientation urgente neurologie", "dosage": "-", "frequency": "-", "duration": "-"}
+    ],
+    "advice": "URGENCE MÉDICALE. Appel SAMU immédiat. Pas d'alimentation orale.",
+    "follow_up_days": 1
+  },
+  "Jaundice": {
+    "medications": [
+      {"name": "Traitement selon étiologie", "dosage": "Selon bilan", "frequency": "Selon prescription", "duration": "Selon étiologie"}
+    ],
+    "advice": "Bilan hépatique complet, échographie abdominale. Hydratation. Arrêt alcool.",
+    "follow_up_days": 7
+  },
+  "Malaria": {
+    "medications": [
+      {"name": "Arthémether-Luméfantrine", "dosage": "80/480mg", "frequency": "2x/jour", "duration": "3 jours"},
+      {"name": "Paracétamol", "dosage": "1g", "frequency": "4x/jour si fièvre", "duration": "Selon symptômes"}
+    ],
+    "advice": "Confirmer par frottis sanguin / TDR. Surveillance de la parasitémie.",
+    "follow_up_days": 7
+  },
+  "Chicken pox": {
+    "medications": [
+      {"name": "Aciclovir", "dosage": "800mg", "frequency": "5x/jour", "duration": "7 jours"},
+      {"name": "Calamine lotion", "dosage": "Application locale", "frequency": "3x/jour", "duration": "Jusqu'à séchage"}
+    ],
+    "advice": "Éviction scolaire/professionnelle jusqu'à croûtage complet. Couper les ongles. Eviter gratter.",
+    "follow_up_days": 10
+  },
+  "Dengue": {
+    "medications": [
+      {"name": "Paracétamol", "dosage": "1g", "frequency": "4x/jour", "duration": "Selon fièvre"},
+      {"name": "Hydratation IV si nécessaire", "dosage": "Selon tolérance orale", "frequency": "Continu", "duration": "Selon évolution"}
+    ],
+    "advice": "ÉVITER ASPIRINE ET AINS. Surveillance plaquettes quotidienne. Signes d'alarme: saignements, douleurs abdominales.",
+    "follow_up_days": 3
+  },
+  "Typhoid": {
+    "medications": [
+      {"name": "Azithromycine", "dosage": "500mg", "frequency": "1x/jour", "duration": "7 jours"},
+      {"name": "Ciprofloxacine", "dosage": "500mg", "frequency": "2x/jour", "duration": "10 jours"}
+    ],
+    "advice": "Isolement digestif. Hygiène des mains stricte. Hémocultures avant antibiothérapie.",
+    "follow_up_days": 14
+  },
+  "hepatitis A": {
+    "medications": [
+      {"name": "Traitement symptomatique", "dosage": "-", "frequency": "-", "duration": "Évolution naturelle 4-6 semaines"}
+    ],
+    "advice": "Repos, hydratation, éviction alcool. Déclaration obligatoire. Vaccination entourage.",
+    "follow_up_days": 14
+  },
+  "Hepatitis B": {
+    "medications": [
+      {"name": "Ténofovir", "dosage": "300mg", "frequency": "1x/jour", "duration": "Long terme selon charge virale"}
+    ],
+    "advice": "Bilan virologique complet. Référer gastroentérologue. Vaccination entourage non immunisé.",
+    "follow_up_days": 30
+  },
+  "Hepatitis C": {
+    "medications": [
+      {"name": "Sofosbuvir/Velpatasvir", "dosage": "400/100mg", "frequency": "1x/jour", "duration": "12 semaines"}
+    ],
+    "advice": "Référer gastroentérologue ou infectiologue. Arrêt alcool impératif.",
+    "follow_up_days": 30
+  },
+  "Hepatitis D": {
+    "medications": [
+      {"name": "Interféron alpha pégylé — spécialiste", "dosage": "Selon prescription spécialiste", "frequency": "Hebdomadaire", "duration": "48 semaines"}
+    ],
+    "advice": "Orientation hépatologie urgente. Possible uniquement si co-infection hépatite B.",
+    "follow_up_days": 14
+  },
+  "Hepatitis E": {
+    "medications": [
+      {"name": "Traitement symptomatique", "dosage": "-", "frequency": "-", "duration": "Résolution spontanée 4-6 semaines"}
+    ],
+    "advice": "Hydratation, repos. Surveiller si immunodéprimé ou femme enceinte (forme grave possible).",
+    "follow_up_days": 14
+  },
+  "Alcoholic hepatitis": {
+    "medications": [
+      {"name": "Prednisone", "dosage": "40mg/jour", "frequency": "1x/jour", "duration": "28 jours si score Maddrey > 32"},
+      {"name": "Thiamine", "dosage": "100mg", "frequency": "3x/jour", "duration": "7 jours minimum"}
+    ],
+    "advice": "ARRÊT ABSOLU ET DÉFINITIF DE L'ALCOOL. Soutien nutritionnel. Prise en charge addictologie.",
+    "follow_up_days": 7
+  },
+  "Tuberculosis": {
+    "medications": [
+      {"name": "Rifampicine", "dosage": "600mg", "frequency": "1x/jour à jeun", "duration": "6 mois"},
+      {"name": "Isoniazide", "dosage": "300mg", "frequency": "1x/jour", "duration": "6 mois"},
+      {"name": "Pyrazinamide", "dosage": "1500mg", "frequency": "1x/jour", "duration": "2 mois"},
+      {"name": "Éthambutol", "dosage": "1200mg", "frequency": "1x/jour", "duration": "2 mois"}
+    ],
+    "advice": "Déclaration obligatoire. Isolement respiratoire initial. Observance stricte — jamais interrompre.",
+    "follow_up_days": 30
+  },
+  "Common Cold": {
+    "medications": [
+      {"name": "Paracétamol", "dosage": "500-1000mg", "frequency": "4x/jour si fièvre/douleurs", "duration": "3-5 jours"},
+      {"name": "Décongestionnant nasal", "dosage": "2 pulvérisations", "frequency": "3x/jour", "duration": "5 jours max"}
+    ],
+    "advice": "Repos, hydratation abondante. Évolution spontanée 7-10 jours. Pas d'antibiotiques.",
+    "follow_up_days": 7
+  },
+  "Pneumonia": {
+    "medications": [
+      {"name": "Amoxicilline-Clavulanate", "dosage": "1g", "frequency": "3x/jour", "duration": "7-10 jours"},
+      {"name": "Azithromycine", "dosage": "500mg J1 puis 250mg", "frequency": "1x/jour", "duration": "5 jours"}
+    ],
+    "advice": "Radiographie thoracique de contrôle à 6 semaines. Hospitalisation si SpO2 < 92% ou signes de gravité.",
+    "follow_up_days": 14
+  },
+  "Dimorphic hemmorhoids(piles)": {
+    "medications": [
+      {"name": "Daflon", "dosage": "500mg", "frequency": "2x/jour", "duration": "3 mois"},
+      {"name": "Suppositoires hémorroïdaires", "dosage": "1 suppositoire", "frequency": "2x/jour", "duration": "10 jours"}
+    ],
+    "advice": "Régime riche en fibres, hydratation, éviter station assise prolongée. Bain de siège tiède.",
+    "follow_up_days": 30
+  },
+  "Heart attack": {
+    "medications": [
+      {"name": "URGENCE — Appel SAMU immédiat", "dosage": "-", "frequency": "-", "duration": "-"},
+      {"name": "Aspirine 300mg à mâcher", "dosage": "300mg", "frequency": "Dose unique", "duration": "Immédiat"}
+    ],
+    "advice": "URGENCE VITALE. Position demi-assise, ne pas laisser seul. Défibrillateur si disponible.",
+    "follow_up_days": 1
+  },
+  "Varicose veins": {
+    "medications": [
+      {"name": "Daflon", "dosage": "500mg", "frequency": "2x/jour", "duration": "3 mois"}
+    ],
+    "advice": "Port de bas de contention. Éviter station debout prolongée. Surélever les jambes. Activité physique.",
+    "follow_up_days": 60
+  },
+  "Hypothyroidism": {
+    "medications": [
+      {"name": "Lévothyroxine", "dosage": "50mcg (ajuster selon TSH)", "frequency": "1x/jour à jeun", "duration": "À vie"}
+    ],
+    "advice": "Contrôle TSH à 6 semaines puis tous les 6 mois. Ne pas prendre avec calcium ou fer.",
+    "follow_up_days": 42
+  },
+  "Hyperthyroidism": {
+    "medications": [
+      {"name": "Carbimazole", "dosage": "20-40mg/jour", "frequency": "En 2-3 prises", "duration": "12-18 mois"}
+    ],
+    "advice": "Référer endocrinologue. Bilan thyroïdien mensuel en phase initiale. Éviter iode en excès.",
+    "follow_up_days": 30
+  },
+  "Hypoglycemia": {
+    "medications": [
+      {"name": "Glucosé 15g per os (sucre, jus)", "dosage": "15g glucides rapides", "frequency": "Immédiat puis contrôle à 15 min", "duration": "Selon glycémie"}
+    ],
+    "advice": "Si inconscient : glucagon IM ou glucosé IV (urgence). Rechercher et corriger la cause.",
+    "follow_up_days": 3
+  },
+  "Osteoarthritis": {
+    "medications": [
+      {"name": "Paracétamol", "dosage": "1g", "frequency": "3x/jour", "duration": "Selon douleur"},
+      {"name": "Ibuprofène", "dosage": "400mg", "frequency": "3x/jour avec repas", "duration": "Cures courtes"}
+    ],
+    "advice": "Kinésithérapie. Perte de poids si surcharge. Activité physique adaptée. Protection articulaire.",
+    "follow_up_days": 60
+  },
+  "Arthritis": {
+    "medications": [
+      {"name": "Ibuprofène", "dosage": "400mg", "frequency": "3x/jour avec repas", "duration": "7-10 jours"},
+      {"name": "Méthotrexate (si PR) — rhumatologue", "dosage": "Selon prescription", "frequency": "1x/semaine", "duration": "Long terme"}
+    ],
+    "advice": "Référer rhumatologue si polyarthrite. Bilan immunologique (FR, anti-CCP, ANA).",
+    "follow_up_days": 21
+  },
+  "(vertigo) Paroymsal  Positional Vertigo": {
+    "medications": [
+      {"name": "Métopimazine", "dosage": "15mg", "frequency": "3x/jour", "duration": "7 jours"}
+    ],
+    "advice": "Manœuvre d'Epley recommandée (kinésithérapeute vestibulaire). Éviter mouvements brusques.",
+    "follow_up_days": 14
+  },
+  "Acne": {
+    "medications": [
+      {"name": "Peroxyde de benzoyle 5% gel", "dosage": "Application locale", "frequency": "1x/jour le soir", "duration": "3 mois"},
+      {"name": "Doxycycline (si acné inflammatoire)", "dosage": "100mg", "frequency": "1x/jour", "duration": "3 mois"}
+    ],
+    "advice": "Nettoyage doux matin et soir. Éviter extraction manuelle. Protection solaire obligatoire.",
+    "follow_up_days": 45
+  },
+  "Urinary tract infection": {
+    "medications": [
+      {"name": "Fosfomycine trométamol", "dosage": "3g", "frequency": "Dose unique", "duration": "1 jour"},
+      {"name": "Nitrofurantoïne", "dosage": "100mg", "frequency": "2x/jour", "duration": "5 jours"}
+    ],
+    "advice": "Hydratation abondante (> 2L/jour). Miction après rapports. ECBU de contrôle à J7 si récidive.",
+    "follow_up_days": 7
+  },
+  "Psoriasis": {
+    "medications": [
+      {"name": "Dermocorticoïde (Bétaméthasone)", "dosage": "Application locale", "frequency": "1x/jour", "duration": "4 semaines"},
+      {"name": "Calcipotriol crème", "dosage": "Application locale", "frequency": "2x/jour", "duration": "8 semaines"}
+    ],
+    "advice": "Éviter les déclencheurs (stress, infections). Hydratation cutanée quotidienne. Référer dermatologue.",
+    "follow_up_days": 30
+  },
+  "Impetigo": {
+    "medications": [
+      {"name": "Acide fusidique crème 2%", "dosage": "Application locale", "frequency": "3x/jour", "duration": "7 jours"},
+      {"name": "Amoxicilline-Clavulanate (si étendu)", "dosage": "500mg", "frequency": "3x/jour", "duration": "7 jours"}
+    ],
+    "advice": "Hygiène stricte, linge personnel. Éviction scolaire 48h après début traitement.",
+    "follow_up_days": 7
+  }
+}

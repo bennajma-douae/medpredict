@@ -8,6 +8,7 @@ import {
 import useSecretaryStore from '../store/secretaryStore';
 import { toast, confirmAlert } from '../store/uiStore';
 import axios from 'axios';
+import SecretaryChatWidget from '../components/SecretaryChatWidget';
 
 const SecretaryDashboard = () => {
   const { 
@@ -18,9 +19,10 @@ const SecretaryDashboard = () => {
   
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
-  const[showPatientModal, setShowPatientModal] = useState(false);
+  const [showPatientModal, setShowPatientModal] = useState(false);
   const [rescheduleData, setRescheduleData] = useState({ date: '', heure: '' });
   const [patientDraft, setPatientDraft] = useState(null);
+  const [selectedPatientProfile, setSelectedPatientProfile] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [occupiedSlots, setOccupiedSlots] = useState([]);
@@ -41,18 +43,22 @@ const SecretaryDashboard = () => {
     }
   }, [rescheduleData.date]);
 
-  // Récupérer les infos du PatientDraft
-  const fetchPatientDraft = async (userId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`http://localhost:8000/api/patients/draft/?user=${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setPatientDraft(res.data);
-      setShowPatientModal(true);
-    } catch (err) {
-      console.error("Erreur fetch draft:", err);
-    }
+  // Afficher le profil depuis les données du RDV (fonctionne pour patients officiels ET drafts)
+  const showPatientProfile = (rdv) => {
+    setSelectedPatientProfile({
+      prenom: rdv.patient_prenom || '',
+      nom: rdv.patient_nom || '',
+      nom_complet: rdv.patient_nom_complet || `${rdv.patient_prenom || ''} ${rdv.patient_nom || ''}`.trim(),
+      telephone: rdv.patient_telephone || null,
+      cin: rdv.patient_cin || null,
+      adresse: null,
+      dateNaissance: rdv.patient_date_naissance || null,
+      groupeSanguin: rdv.patient_groupe_sanguin || null,
+      allergies: rdv.patient_allergies || null,
+      genre: rdv.patient_genre || null,
+      is_official: !!rdv.patient_id,
+    });
+    setShowPatientModal(true);
   };
 
   // Filtrer les RDV
@@ -139,7 +145,7 @@ const SecretaryDashboard = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 font-sans">
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans">
       
       {/* ✅ ONGLET DASHBOARD */}
       {activeTab === 'dashboard' && (
@@ -147,53 +153,53 @@ const SecretaryDashboard = () => {
           {/* ── HEADER ── */}
           <div className="flex justify-between items-end">
             <div>
-              <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">
+              <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">
                 Tableau de bord
               </h1>
-              <p className="text-slate-400 text-sm font-medium mt-1">
+              <p className="text-slate-400 text-xs font-medium mt-1">
                 Gestion du cabinet • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
             <button 
               onClick={() => fetchRequests()}
-              className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all text-sm font-bold shadow-sm"
+              className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all text-xs font-bold shadow-sm"
             >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Actualiser
             </button>
           </div>
 
           {/* ── KPIs ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {kpiData.map(({ label, value, icon: Icon, color, trend }) => (
-              <div key={label} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 bg-${color}-50 rounded-2xl flex items-center justify-center text-${color}-600 group-hover:scale-110 transition-transform`}>
-                    <Icon size={24} />
+              <div key={label} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`w-10 h-10 bg-${color}-50 rounded-xl flex items-center justify-center text-${color}-600 group-hover:scale-110 transition-transform`}>
+                    <Icon size={20} />
                   </div>
                   <TrendingUp size={14} className="text-slate-300" />
                 </div>
-                <p className="text-slate-800 font-black text-3xl tracking-tighter leading-none mb-2">
+                <p className="text-slate-800 font-black text-2xl tracking-tighter leading-none mb-1.5">
                   {value}
                 </p>
-                <p className={`text-[10px] font-black text-${color}-600 uppercase tracking-widest`}>
+                <p className={`text-[9px] font-black text-${color}-600 uppercase tracking-widest`}>
                   {label}
                 </p>
-                <p className="text-slate-400 text-[10px] mt-2 font-medium">{trend}</p>
+                <p className="text-slate-400 text-[10px] mt-1.5 font-medium">{trend}</p>
               </div>
             ))}
           </div>
 
           {/* ── DEMANDES EN ATTENTE (Boîte de réception) ── */}
-          <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
                   <Inbox size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-800 tracking-tight">Demandes de rendez-vous</h3>
-                  <p className="text-slate-400 text-xs font-medium">
+                  <h3 className="text-base font-black text-slate-800 tracking-tight">Demandes de rendez-vous</h3>
+                  <p className="text-slate-400 text-[11px] font-medium">
                     {stats.pending} en attente de confirmation
                   </p>
                 </div>
@@ -265,7 +271,7 @@ const SecretaryDashboard = () => {
                     {/* Actions */}
                     <div className="flex items-center gap-2">
                       <button 
-                        onClick={() => fetchPatientDraft(req.user)}
+                        onClick={() => showPatientProfile(req)}
                         className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                         title="Voir le profil patient"
                       >
@@ -409,7 +415,7 @@ const SecretaryDashboard = () => {
                       </span>
                     </td>
                     <td className="p-5 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex items-center justify-end gap-1">
                         {rdv.statut === 'EN_ATTENTE' && (
                           <>
                             <button 
@@ -429,10 +435,17 @@ const SecretaryDashboard = () => {
                             >
                               <Edit3 size={16} />
                             </button>
+                            <button 
+                              onClick={() => handleCancel(rdv.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              title="Annuler"
+                            >
+                              <X size={16} />
+                            </button>
                           </>
                         )}
                         <button 
-                          onClick={() => fetchPatientDraft(rdv.user)}
+                          onClick={() => showPatientProfile(rdv)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                           title="Voir profil"
                         >
@@ -454,16 +467,187 @@ const SecretaryDashboard = () => {
         </div>
       )}
 
-      {/* ✅ ONGLET STATISTIQUES */}
-      {activeTab === 'stats' && (
-        <div className="animate-in fade-in flex items-center justify-center h-[50vh]">
-          <div className="text-center text-slate-400">
-             <Activity size={48} className="mx-auto mb-4 opacity-30" />
-             <h3 className="text-xl font-bold text-slate-600">Statistiques Détaillées</h3>
-             <p className="mt-2 text-sm">Le module d'analyse sera bientôt disponible.</p>
-          </div>
-        </div>
+      {/* ✅ ONGLET MESSAGERIE */}
+      {activeTab === 'chat' && (
+        <SecretaryChatWidget />
       )}
+
+      {/* ✅ ONGLET STATISTIQUES */}
+      {activeTab === 'stats' && (() => {
+        const totalP = stats.totalPatients || 0;
+        const totalRDV = allAppointments.length;
+        const completedRDV = allAppointments.filter(r => r.statut === 'TERMINE').length;
+        const confirmedRDV = allAppointments.filter(r => r.statut === 'CONFIRME').length;
+        const pendingRDV = allAppointments.filter(r => ['EN_ATTENTE', 'PROPOSE', 'PATIENT_ACCEPTE', 'PATIENT_REFUSE'].includes(r.statut)).length;
+        const cancelledRDV = allAppointments.filter(r => r.statut === 'ANNULE').length;
+
+        const visioRDV = allAppointments.filter(r => r.type === 'VISIO').length;
+        const cabinetRDV = allAppointments.filter(r => r.type === 'PRESENTIEL').length;
+        
+        const visioPct = totalRDV ? Math.round((visioRDV / totalRDV) * 100) : 0;
+        const cabinetPct = totalRDV ? Math.round((cabinetRDV / totalRDV) * 100) : 0;
+
+        // Group motives by frequency
+        const motivesFreq = {};
+        allAppointments.forEach(r => {
+          if (!r.motif) return;
+          motivesFreq[r.motif] = (motivesFreq[r.motif] || 0) + 1;
+        });
+        const topMotives = Object.entries(motivesFreq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Header */}
+            <div>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">
+                Statistiques globales du cabinet
+              </h1>
+              <p className="text-slate-400 text-xs font-medium mt-1">
+                Indicateurs clés de performance et répartition de l'activité du cabinet MedPredict
+              </p>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Patients</p>
+                <p className="text-slate-800 font-black text-3xl tracking-tighter leading-none mb-2">{totalP}</p>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-blue-500 h-full rounded-full" style={{ width: '100%' }} />
+                </div>
+                <p className="text-slate-400 text-[10px] mt-2 font-semibold">Patients actifs enregistrés</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Consultations Clôturées</p>
+                <p className="text-slate-800 font-black text-3xl tracking-tighter leading-none mb-2">{completedRDV}</p>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalRDV ? Math.round((completedRDV / totalRDV) * 100) : 0}%` }} />
+                </div>
+                <p className="text-slate-400 text-[10px] mt-2 font-semibold">{totalRDV ? Math.round((completedRDV / totalRDV) * 100) : 0}% de l'ensemble des rendez-vous</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Taux Téléconsultation</p>
+                <p className="text-slate-800 font-black text-3xl tracking-tighter leading-none mb-2">{visioPct}%</p>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${visioPct}%` }} />
+                </div>
+                <p className="text-slate-400 text-[10px] mt-2 font-semibold">{visioRDV} consultations en vidéo-session</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Rendez-vous programmés</p>
+                <p className="text-slate-800 font-black text-3xl tracking-tighter leading-none mb-2">{confirmedRDV}</p>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-amber-500 h-full rounded-full" style={{ width: `${totalRDV ? Math.round((confirmedRDV / totalRDV) * 100) : 0}%` }} />
+                </div>
+                <p className="text-slate-400 text-[10px] mt-2 font-semibold">{confirmedRDV} dossiers en attente de visite</p>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Répartition cabinet vs visio */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6 lg:col-span-1">
+                <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest flex items-center gap-2 border-b border-slate-50 pb-4">
+                  <Activity size={14} className="text-indigo-500" />
+                  Canal de consultation
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Visio */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-600 flex items-center gap-1.5"><Video size={14} className="text-indigo-500" /> Téléconsultation (Visio)</span>
+                      <span className="text-slate-800">{visioRDV} ({visioPct}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                      <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${visioPct}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Cabinet */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-600 flex items-center gap-1.5"><User size={14} className="text-emerald-500" /> Présentiel (Cabinet)</span>
+                      <span className="text-slate-800">{cabinetRDV} ({cabinetPct}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${cabinetPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-semibold text-slate-500 leading-relaxed">
+                  💡 Les consultations en présentiel restent majoritaires au cabinet MedPredict, mais la téléconsultation continue sa forte progression pour les suivis de dossiers.
+                </div>
+              </div>
+
+              {/* Motifs fréquents */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 lg:col-span-2">
+                <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest flex items-center gap-2 border-b border-slate-50 pb-4">
+                  <TrendingUp size={14} className="text-blue-500" />
+                  Motifs de consultation les plus fréquents
+                </h3>
+
+                <div className="divide-y divide-slate-50">
+                  {topMotives.map(([motif, count], idx) => {
+                    const pct = Math.round((count / totalRDV) * 100);
+                    return (
+                      <div key={motif} className="py-3.5 flex justify-between items-center first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-black text-[10px]">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-slate-700">{motif}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-bold">
+                          <span className="font-extrabold text-slate-800">{count} consultation{count > 1 ? 's' : ''}</span>
+                          <span className="px-2 py-0.5 bg-slate-50 text-slate-400 font-bold border border-slate-100 rounded text-[9px]">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {topMotives.length === 0 && (
+                    <div className="py-12 text-center text-slate-400 italic text-xs">
+                      Aucune donnée de consultation pour le moment.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Répartition des statuts des RDV */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+              <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest flex items-center gap-2 border-b border-slate-50 pb-4">
+                <CheckCircle2 size={14} className="text-emerald-500" />
+                Cycle de vie des rendez-vous du cabinet
+              </h3>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-2xl text-center">
+                  <p className="text-[9px] font-black uppercase text-blue-600 tracking-wider">Finalisés</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">{completedRDV}</p>
+                </div>
+                <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl text-center">
+                  <p className="text-[9px] font-black uppercase text-emerald-600 tracking-wider">Confirmés</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">{confirmedRDV}</p>
+                </div>
+                <div className="p-4 bg-amber-50/40 border border-amber-100 rounded-2xl text-center">
+                  <p className="text-[9px] font-black uppercase text-amber-600 tracking-wider">En attente</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">{pendingRDV}</p>
+                </div>
+                <div className="p-4 bg-red-50/40 border border-red-100 rounded-2xl text-center">
+                  <p className="text-[9px] font-black uppercase text-red-600 tracking-wider">Annulés</p>
+                  <p className="text-2xl font-black text-slate-800 mt-1">{cancelledRDV}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── MODALS (Globales) ── */}
       {showRescheduleModal && selectedRequest && (
@@ -532,39 +716,38 @@ const SecretaryDashboard = () => {
         </div>
       )}
 
-      {showPatientModal && patientDraft && (
+      {showPatientModal && selectedPatientProfile && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in">
           <div className="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-800">Profil patient</h3>
-              <button onClick={() => setShowPatientModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => { setShowPatientModal(false); setSelectedPatientProfile(null); }} className="text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
             </div>
 
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl">
-                {patientDraft.prenom?.[0]}{patientDraft.nom?.[0]}
+                {selectedPatientProfile.prenom?.[0]}{selectedPatientProfile.nom?.[0]}
               </div>
               <div>
-                <p className="text-lg font-black text-slate-800">{patientDraft.prenom} {patientDraft.nom}</p>
+                <p className="text-lg font-black text-slate-800">{selectedPatientProfile.nom_complet}</p>
                 <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${
-                  patientDraft.status === 'ACTIF' 
-                    ? 'bg-amber-100 text-amber-700' 
-                    : 'bg-emerald-100 text-emerald-700'
+                  selectedPatientProfile.is_official
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-amber-100 text-amber-700'
                 }`}>
-                  {patientDraft.status === 'ACTIF' ? 'En attente de 1ère visite' : 'Patient officiel'}
+                  {selectedPatientProfile.is_official ? 'Patient officiel' : 'En attente de 1ère visite'}
                 </span>
               </div>
             </div>
 
             <div className="space-y-3">
-              <InfoRow icon={Phone} label="Téléphone" value={patientDraft.telephone} />
-              <InfoRow icon={Mail} label="Email" value={patientDraft.email} />
-              <InfoRow icon={MapPin} label="Adresse" value={patientDraft.adresse} />
-              <InfoRow icon={Calendar} label="Date de naissance" value={patientDraft.dateNaissance} />
-              <InfoRow icon={Activity} label="Groupe sanguin" value={patientDraft.groupeSanguin} accent="text-red-500" />
-              <InfoRow icon={AlertCircle} label="Allergies" value={patientDraft.allergies} />
+              <InfoRow icon={Phone} label="Téléphone" value={selectedPatientProfile.telephone} />
+              <InfoRow icon={MapPin} label="CIN" value={selectedPatientProfile.cin} />
+              <InfoRow icon={Calendar} label="Date de naissance" value={selectedPatientProfile.dateNaissance} />
+              <InfoRow icon={Activity} label="Groupe sanguin" value={selectedPatientProfile.groupeSanguin} accent="text-red-500" />
+              <InfoRow icon={AlertCircle} label="Allergies" value={selectedPatientProfile.allergies} />
             </div>
           </div>
         </div>

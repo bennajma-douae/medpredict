@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  Inbox, Calendar, Users, BarChart3, LogOut, Bell, 
-  Menu, X, ChevronLeft, ChevronRight, Stethoscope
+  Inbox, Calendar, Users, BarChart3, LogOut, Bell,
+  Menu, X, ChevronLeft, ChevronRight, Stethoscope, MessageCircle, Settings
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import useSecretaryStore from '../store/secretaryStore';
@@ -12,8 +12,7 @@ const SecretaryLayout = ({ children }) => {
   const[showNotifications, setShowNotifications] = useState(false);
   const { user, logout } = useAuthStore();
   
-  // ✅ MODIFIÉ : On récupère l'onglet actif et la fonction pour le changer
-  const { stats, activeTab, setActiveTab } = useSecretaryStore();
+  const { stats, activeTab, setActiveTab, unreadChatCount } = useSecretaryStore();
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,11 +20,13 @@ const SecretaryLayout = ({ children }) => {
   const pendingCount = stats?.pending ?? 0;
 
   // ✅ MODIFIÉ : Utilisation de "id" pour gérer les onglets
-  const menuItems =[
-    { icon: Inbox, label: "Demandes", id: "dashboard", badge: pendingCount },
-    { icon: Calendar, label: "Agenda", id: "agenda" },
-    { icon: Users, label: "Patients", id: "patients" },
-    { icon: BarChart3, label: "Statistiques", id: "stats" },
+  const menuItems = [
+    { icon: Inbox,         label: "Demandes",     id: "dashboard",  badge: pendingCount },
+    { icon: Calendar,      label: "Agenda",       id: "agenda" },
+    { icon: Users,         label: "Patients",     id: "patients" },
+    { icon: MessageCircle, label: "Messagerie",   id: "chat",      badge: unreadChatCount },
+    { icon: BarChart3,     label: "Statistiques", id: "stats" },
+    { icon: Settings,      label: "Paramètres",   id: "settings",  route: '/secretary/settings' },
   ];
 
   // Vérifie si on est sur la route /patients pour colorer le bouton "Patients"
@@ -70,14 +71,20 @@ const SecretaryLayout = ({ children }) => {
           )}
           
           {menuItems.map((item) => {
-            // Un item est actif si c'est l'onglet courant (sur le dashboard) OU si c'est la page /patients
-            const active = item.id === 'patients' ? isPatientsRoute : (!isPatientsRoute && activeTab === item.id);
+            // Active si : route dédiée match, ou page /patients, ou onglet dashboard actif
+            const active = item.route
+              ? location.pathname === item.route
+              : item.id === 'patients'
+                ? isPatientsRoute
+                : (!isPatientsRoute && location.pathname !== '/secretary/settings' && activeTab === item.id);
             
             return (
               <button
                 key={item.id}
                 onClick={() => {
-                  if (item.id === 'patients') {
+                  if (item.route) {
+                    navigate(item.route);
+                  } else if (item.id === 'patients') {
                     navigate('/patients');
                   } else {
                     setActiveTab(item.id);
